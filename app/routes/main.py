@@ -1,12 +1,25 @@
 from flask import Blueprint, jsonify  # 导入Blueprint和jsonify
-from .models import User  # 从models文件导入User模型
-from .extensions import db  # 从extensions文件导入db（SQLAlchemy）
+from app.models.users import User  # 从models文件导入User模型
+from app.extensions import db  # 从extensions文件导入db（SQLAlchemy）
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
     return "Flask 配置成功！"
+
+from flask import current_app
+
+@main_bp.route('/routes')
+def list_routes():
+    routes = []
+    for rule in current_app.url_map.iter_rules():  # 使用current_app代替app
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'path': str(rule)
+        })
+    return jsonify(routes)
 
 # 创建一个Blueprint对象，用于注册路由
 test_bp = Blueprint('test', __name__)
@@ -31,3 +44,4 @@ def create_test_user():
     
     # 返回一个JSON响应，包含成功信息和新用户的ID
     return jsonify({"msg": "测试用户已创建", "id": new_user.id})
+# 在某个蓝图或主应用中添加
