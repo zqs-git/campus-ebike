@@ -4,6 +4,11 @@ from app.extensions import db  # 从extensions文件导入db（SQLAlchemy）
 
 main_bp = Blueprint('main', __name__)
 
+@main_bp.route('/test-error')
+def test_error():
+    # 人为制造一个错误
+    raise ValueError("这是一个测试错误")
+
 @main_bp.route('/')
 def index():
     return "Flask 配置成功！"

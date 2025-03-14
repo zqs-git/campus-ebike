@@ -8,4 +8,4 @@ if __name__ == '__main__':
     # print("当前数据库URI:", app.config['SQLALCHEMY_DATABASE_URI'])
     # print("调试模式状态:", app.config['DEBUG'])
     # 启动开发服务器（调试模式建议通过环境变量控制）
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000,debug=True)

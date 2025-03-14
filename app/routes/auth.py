@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 from app.models.users import User
 from app import db
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -25,7 +26,9 @@ def register():
     }
     """
     data = request.get_json()
-    print(f"Received registration data: {data}")  # ✅ 添加调试日志
+    # print(f"Received registration data: {data}")  # ✅ 添加调试日志
+    if not data:
+        return jsonify({"msg": "没有收到数据"}), 400
     user_type = data.get('user_type')
 
     # --------------------------
@@ -76,7 +79,7 @@ def register():
             phone=data.get('phone'),
             name=data.get('name'),
             license_plate=data.get('license_plate'),
-            id_card=data.get('id_card'),
+            id_card=data.get('id_card') or None,
             role='visitor' if user_type=='external' else 'student'  # 角色分配
         )
 
@@ -97,9 +100,20 @@ def register():
             }
         }),201
 
+    except IntegrityError as e:
+        db.session.rollback()
+        print(f"IntegrityError: {e}")  # ✅ 打印数据库约束错误
+        return jsonify({'error': 'IntegrityError', 'details': str(e)}), 400
+
+    except OperationalError as e:
+        db.session.rollback()
+        print(f"OperationalError: {e}")  # ✅ 打印数据库操作错误
+        return jsonify({'error': 'OperationalError', 'details': str(e)}), 500
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({"code":500, "msg":"服务器错误"}),500
+        print(f"Unknown Error: {e}")  # ✅ 打印未知错误
+        return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
 
 # --------------------------
 # 模拟验证服务
