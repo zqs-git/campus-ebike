@@ -2,9 +2,11 @@
 from flask import Flask
 from .config import Config, TestingConfig, DevelopmentConfig, ProductionConfig
 from flask_migrate import Migrate
-from .extensions import db  # 从扩展文件导入
+from .extensions import db,init_extensions,redis_client  # 从扩展文件导入
 import redis
 from datetime import timedelta
+from flask_jwt_extended import JWTManager
+jwt = JWTManager()
 
 # 定义配置映射字典（配置名称 → 配置类）
 config_mapping = {
@@ -36,13 +38,27 @@ def create_app(config_name='development'):
         raise ValueError(f"Invalid config name: {config_name}. "
                          f"Valid options: {list(config_mapping.keys())}")
 
-    # 初始化数据库
-    db.init_app(app)
+    # 初始化扩展
+    init_extensions(app)
+    app.config["REDIS_URL"] = "redis://localhost:6379/0"  # ✅ 配置 Redis 连接
     
     # 绑定迁移实例到应用和数据库
     migrate.init_app(app, db)  # ✅ 关键修正
 
     from app.models import users  # 或者具体的模型模块
+
+    # JWT回调配置
+    @jwt.user_lookup_loader
+    def user_loader_callback(_jwt_header, jwt_data):
+        """根据JWT identity加载用户"""
+        identity = jwt_data["sub"]
+        return User.query.get(identity)
+
+    @jwt.token_in_blocklist_loader
+    def check_token_revoked(jwt_header, jwt_data):
+        """检查令牌是否在黑名单"""
+        jti = jwt_data["jti"]
+        return redis_client.exists(jti) == 1
     # --------------------------
     # 蓝图注册（延迟导入避免循环依赖）
     # --------------------------

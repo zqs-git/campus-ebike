@@ -115,3 +115,8 @@ class User(db.Model):
     def __repr__(self):
         """调试表示方法"""
         return f'<User {self.school_id or self.phone}>'
+    
+    def update_login_time(self):
+        """更新最后登录时间"""
+        from datetime import datetime
+        self.last_login = datetime.utcnow()

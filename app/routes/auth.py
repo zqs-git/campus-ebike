@@ -1,6 +1,6 @@
 # app/routes/auth.py
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import create_access_token, create_refresh_token,get_jwt,jwt_required,current_user  
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 from app.models.users import User
@@ -25,6 +25,7 @@ def register():
     }
     """
     data = request.get_json()
+    print(f"Received registration data: {data}")  # ✅ 添加调试日志
     user_type = data.get('user_type')
 
     # --------------------------
@@ -116,136 +117,168 @@ def validate_id_card(id_number):
 
 # @auth_bp.route('/login', methods=['POST'])
 # def login():
-#     """
-#     用户登录接口
-#     请求示例：
-#     {
-#         "username": "13800138000",  # 支持手机号或学工号
-#         "password": "TestPass123!"
-#     }
-#     响应示例：
-#     {
-#         "code": 200,
-#         "msg": "登录成功",
-#         "data": {
-#             "access_token": "xxx",
-#             "refresh_token": "xxx",
-#             "user_info": {
-#                 "user_id": 1,
-#                 "role": "student",
-#                 "name": "张三"
-#             }
-#         }
-#     }
-#     """
-
-#     # 获取请求数据（JSON格式）
-#     data = request.get_json()
-
-#     # 基础校验：确保请求数据存在，并包含 "username" 和 "password" 字段
-#     if not data or 'username' not in data or 'password' not in data:
-#         return jsonify({"code": 400, "msg": "缺少用户名或密码"}), 400
-
-#     # 去除用户名前后空格，提取密码
-#     username = data['username'].strip()
-#     password = data['password']
-
-#     # 查找用户（支持手机号或学工号登录）
-#     user = User.query.filter(
-#         (User.phone == username) | (User.school_id == username)
-#     ).first()
-
-#     # 如果用户不存在，或密码错误，则返回 401 未授权
-#     if not user or not user.verify_password(password):
-#         return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
-
-#     # 生成访问令牌（access_token）和刷新令牌（refresh_token）
-#     # identity=user，意味着 JWT 令牌中的 "sub" 字段会存储用户的身份信息
-#     access_token = create_access_token(identity=user)
-#     refresh_token = create_refresh_token(identity=user)
-
-#     # 更新用户的最后登录时间
-#     user.last_login = datetime.utcnow()
-#     db.session.commit()
-
-#     # 返回 JSON 响应，包含 access_token、refresh_token 和用户基本信息
-#     return jsonify({
-#         "code": 200,
-#         "msg": "登录成功",
-#         "data": {
-#             "access_token": access_token,  # 访问令牌（用于验证用户身份）
-#             "refresh_token": refresh_token,  # 刷新令牌（用于获取新的访问令牌）
-#             "user_info": {
-#                 "user_id": user.id,  # 用户 ID
-#                 "role": user.role,  # 用户角色（例如：student, admin）
-#                 "name": user.name  # 用户姓名
-#             }
-#         }
-#     }), 200
-
-
-# from flask import jsonify
-# from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
-
-# @auth_bp.route('/refresh', methods=['POST'])
-# @jwt_required(refresh=True)  # ✅ 需要携带有效的 Refresh Token
-# def refresh_token():
     """
-    令牌刷新接口
-    - 客户端在 Access Token 过期后，可以使用 Refresh Token 重新获取新的 Access Token。
-    - 请求示例：
-      POST /api/auth/refresh
-      Headers: {"Authorization": "Bearer <refresh_token>"}
-    - 响应示例：
-      {
-          "code": 200,
-          "msg": "令牌刷新成功",
-          "data": {
-              "access_token": "新的访问令牌"
-          }
-      }
+    用户登录接口
+    ---
+    tags:
+      - 认证
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+              description: 手机号或学工号
+              example: "13800138000"
+            password:
+              type: string
+              description: 登录密码
+              example: "TestPass123!"
+    responses:
+      200:
+        description: 登录成功返回令牌
+      400:
+        description: 请求参数缺失
+      401:
+        description: 用户名或密码错误
     """
-
-    # ✅ 获取当前用户身份（从 Refresh Token 中解析出的用户信息）
-    current_user = get_jwt_identity()
-
-    # ✅ 生成新的 Access Token
-    new_token = create_access_token(identity=current_user)
-
-    # ✅ 返回新的 Access Token
+    # 获取请求数据
+    data = request.get_json()
+    print(f"Received JSON: {data}")  # ✅ 确保数据正确
+    
+    # 参数校验
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
+    
+    username = data['username'].strip().lower()
+    password = data['password']
+    
+    # 查询用户（支持手机号/学工号登录）
+    user = User.query.filter(
+        (User.phone == username) | 
+        (User.school_id == username)
+    ).first()
+    
+    # 用户不存在或密码错误
+    if not user or not user.verify_password(password):
+        return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
+    
+    # 账户状态检查
+    if not user.is_active:
+        return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
+    
+    # 生成JWT令牌
+    access_token = create_access_token(identity=user)
+    refresh_token = create_refresh_token(identity=user)
+    
+    # 更新登录时间
+    user.update_login_time()
+    db.session.commit()
+    
     return jsonify({
         "code": 200,
-        "msg": "令牌刷新成功",
+        "msg": "登录成功",
         "data": {
-            "access_token": new_token  # 返回新的 Access Token
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user_info": {
+                "user_id": user.id,
+                "role": user.role,
+                "name": user.name
+            }
         }
     }), 200
 
 
 
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """用户登录接口"""
+    data = request.get_json()
 
-# # ✅ 登出接口（令牌拉黑）
-# @auth_bp.route('/logout', methods=['DELETE'])
-# @jwt_required()  # 需要携带有效的 JWT 访问
-# def logout():
-#     """
-#     用户登出接口：
-#     - 该接口会将当前用户的 JWT 加入黑名单，使其失效，防止继续使用该令牌访问系统。
-#     - 请求示例：
-#       DELETE /api/auth/logout
-#       Headers: {"Authorization": "Bearer <access_token>"}
-#     - 响应示例：
-#       {
-#           "code": 200,
-#           "msg": "成功登出"
-#       }
-#     """
+    # **修正：确保 data 是字典**
+    if not isinstance(data, dict):
+        return jsonify({"code": 400, "msg": "请求数据格式错误"}), 400
 
-#     # ✅ 获取当前令牌的 jti（JWT 唯一标识符）
-#     jti = get_jwt()["jti"]
+    # **修正：避免 NoneType 错误**
+    username = (data.get("username") or "").strip().lower()
+    password = data.get("password") or ""
 
-#     # ✅ 将该令牌存入 Redis 黑名单，并设置过期时间（与 JWT 过期时间一致）
-#     jwt_redis_blocklist.set(jti, "", ex=timedelta(hours=1))  # 1小时后自动删除
+    # **校验字段是否为空**
+    if not username or not password:
+        return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
 
-#     # ✅ 返回成功登出响应
-#     return jsonify({"code": 200, "msg": "成功登出"}), 200
+    # 查询用户
+    user = User.query.filter(
+        (User.phone == username) | 
+        (User.school_id == username)
+    ).first()
+    
+    if not user:
+        return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
+    
+    if not user.is_active:
+        return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
+    
+    if not user.verify_password(password):
+        return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
+
+    # 生成 JWT 令牌
+    access_token = create_access_token(identity=user.id)
+    refresh_token = create_refresh_token(identity=user.id)
+
+    user.update_login_time()
+    db.session.commit()
+    
+    return jsonify({
+        "code": 200,
+        "msg": "登录成功",
+        "data": {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user_info": {
+                "user_id": user.id,
+                "role": user.role,
+                "name": user.name
+            }
+        }
+    }), 200
+
+
+
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh_access_token():
+    """使用Refresh Token获取新Access Token"""
+    new_token = create_access_token(identity=current_user)
+    return jsonify({
+        "code": 200,
+        "msg": "令牌刷新成功",
+        "access_token": new_token
+    }), 200
+
+
+from app.extensions import redis_client  # ✅ 确保 redis_client 可用
+
+@auth_bp.route('/logout', methods=['DELETE'])
+@jwt_required()
+def logout():
+    """用户登出"""
+    try:
+        jti = get_jwt()["jti"]
+        expires_in = get_jwt()["exp"] - get_jwt()["iat"]
+
+        # **检查 Redis 是否可用**
+        if not redis_client.ping():
+            return jsonify({"code": 500, "msg": "Redis 连接失败"}), 500
+        
+        redis_client.setex(jti, expires_in, "revoked")
+
+    except Exception as e:
+        print(f"Logout Error: {e}")  # ✅ 打印错误信息
+        return jsonify({"code": 500, "msg": "登出失败"}), 500
+
+    return jsonify({"code": 200, "msg": "成功登出"}), 200
