@@ -54,7 +54,7 @@ class User(db.Model):
     
     # 安全相关字段
     password_hash = db.Column(
-        db.String(128), 
+        db.String(255), 
         nullable=True, 
         comment="密码哈希（可为空，支持无密码登录）"
     )
@@ -81,11 +81,15 @@ class User(db.Model):
 
     # 新增字段
     name = db.Column(db.String(50))  # 姓名
-    id_card = db.Column(db.String(18), unique=True)  # 身份证号
+    id_card = db.Column(db.String(18), unique=True, nullable=True)  # 身份证号
+    
     license_plate = db.Column(db.String(15))  # 车牌号
-    permission_expire = db.Column(db.DateTime)  # 权限有效期（访客专用）
+    permission_expire = db.Column(db.DateTime, nullable=True)  # 权限有效期（访客专用）
 
-    last_login = db.Column(db.DateTime)  # 新增最后登录时间字段
+    last_login = db.Column(db.DateTime, nullable=True)  # ✅ 允许空值
+
+    def update_login_time(self):
+        self.last_login = datetime.utcnow()  # 确保有更新方法
     
     # 关联关系（一对多）
     # vehicles = db.relationship(

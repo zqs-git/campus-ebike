@@ -15,3 +15,4 @@ Thumbs.db
 # Log files
 app.log
 *.log
+node_modules

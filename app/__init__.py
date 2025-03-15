@@ -7,6 +7,10 @@ import redis
 from datetime import timedelta
 from flask_jwt_extended import JWTManager
 jwt = JWTManager()
+from flask_cors import CORS
+import logging
+from logging.handlers import RotatingFileHandler
+
 
 # 定义配置映射字典（配置名称 → 配置类）
 config_mapping = {
@@ -27,6 +31,34 @@ def create_app(config_name='development'):
     """
     # 创建Flask应用实例
     app = Flask(__name__)
+
+    # 配置日志（生产环境单独配置）
+    if app.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        # SQLAlchemy 日志配置
+        sql_logger = logging.getLogger('sqlalchemy.engine')
+        sql_logger.setLevel(logging.INFO)
+        
+        # 添加文件日志（可选）
+        file_handler = RotatingFileHandler(
+            'app.log', maxBytes=1024*1024, backupCount=10
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        app.logger.addHandler(file_handler)
+
+
+    # 必须在所有路由注册前初始化 CORS
+    CORS(app, resources={r"/api/*": {
+        "origins": ["http://localhost:8080", "http://localhost:5000"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }})
     
     # --------------------------
     # 配置加载
@@ -52,7 +84,7 @@ def create_app(config_name='development'):
     def user_loader_callback(_jwt_header, jwt_data):
         """根据JWT identity加载用户"""
         identity = jwt_data["sub"]
-        return User.query.get(identity)
+        return users.User.query.get(identity)
 
     @jwt.token_in_blocklist_loader
     def check_token_revoked(jwt_header, jwt_data):
