@@ -11,3 +11,7 @@ __pycache__/
 Thumbs.db
 # 忽略环境配置文件（可选）
 .env
+
+# Log files
+app.log
+*.log
