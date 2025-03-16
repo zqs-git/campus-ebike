@@ -29,9 +29,22 @@ const username = ref("");
 const password = ref("");
 
 const handleLogin = async () => {
-  const success = await authStore.login(username.value, password.value);
-  if (success) {
-    router.push("/dashboard");
+  const role = await authStore.login(username.value, password.value);
+  //console.log("获取的角色:", role);
+  if (role) {
+    //alert("获取到了角色：" + role);
+
+    // 登录成功后获取用户信息
+    //await authStore.fetchUserInfo();
+
+    // 根据角色跳转页面
+    if (role === "admin") {
+      // 如果是管理员，跳转到管理员面板
+      router.push("/admin-dashboard");
+    } else {
+      // 如果是普通用户，跳转到用户信息管理页面
+      router.push("/user-management");
+    }
   } else {
     alert("登录失败，请检查用户名或密码");
   }

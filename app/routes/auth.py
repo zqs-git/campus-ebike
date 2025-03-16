@@ -1,7 +1,7 @@
 # app/routes/auth.py
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token,get_jwt,jwt_required,current_user  
-from datetime import datetime, timedelta
+from flask_jwt_extended import create_access_token, create_refresh_token,get_jwt,jwt_required,current_user
+from flask_jwt_extended import JWTManager, get_jwt_identity
 from werkzeug.security import generate_password_hash
 from app.models.users import User
 from app import db
@@ -131,80 +131,80 @@ def validate_id_card(id_number):
 
 # @auth_bp.route('/login', methods=['POST'])
 # def login():
-    """
-    用户登录接口
-    ---
-    tags:
-      - 认证
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          properties:
-            username:
-              type: string
-              description: 手机号或学工号
-              example: "13800138000"
-            password:
-              type: string
-              description: 登录密码
-              example: "TestPass123!"
-    responses:
-      200:
-        description: 登录成功返回令牌
-      400:
-        description: 请求参数缺失
-      401:
-        description: 用户名或密码错误
-    """
-    # 获取请求数据
-    data = request.get_json()
-    print(f"Received JSON: {data}")  # ✅ 确保数据正确
+    # """
+    # 用户登录接口
+    # ---
+    # tags:
+    #   - 认证
+    # parameters:
+    #   - in: body
+    #     name: body
+    #     required: true
+    #     schema:
+    #       type: object
+    #       properties:
+    #         username:
+    #           type: string
+    #           description: 手机号或学工号
+    #           example: "13800138000"
+    #         password:
+    #           type: string
+    #           description: 登录密码
+    #           example: "TestPass123!"
+    # responses:
+    #   200:
+    #     description: 登录成功返回令牌
+    #   400:
+    #     description: 请求参数缺失
+    #   401:
+    #     description: 用户名或密码错误
+    # """
+    # # 获取请求数据
+    # data = request.get_json()
+    # print(f"Received JSON: {data}")  # ✅ 确保数据正确
     
-    # 参数校验
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
+    # # 参数校验
+    # if not data or 'username' not in data or 'password' not in data:
+    #     return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
     
-    username = data['username'].strip().lower()
-    password = data['password']
+    # username = data['username'].strip().lower()
+    # password = data['password']
     
-    # 查询用户（支持手机号/学工号登录）
-    user = User.query.filter(
-        (User.phone == username) | 
-        (User.school_id == username)
-    ).first()
+    # # 查询用户（支持手机号/学工号登录）
+    # user = User.query.filter(
+    #     (User.phone == username) | 
+    #     (User.school_id == username)
+    # ).first()
     
-    # 用户不存在或密码错误
-    if not user or not user.verify_password(password):
-        return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
+    # # 用户不存在或密码错误
+    # if not user or not user.verify_password(password):
+    #     return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
     
-    # 账户状态检查
-    if not user.is_active:
-        return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
+    # # 账户状态检查
+    # if not user.is_active:
+    #     return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
     
-    # 生成JWT令牌
-    access_token = create_access_token(identity=user)
-    refresh_token = create_refresh_token(identity=user)
+    # # 生成JWT令牌
+    # access_token = create_access_token(identity=user)
+    # refresh_token = create_refresh_token(identity=user)
     
-    # 更新登录时间
-    user.update_login_time()
-    db.session.commit()
+    # # 更新登录时间
+    # user.update_login_time()
+    # db.session.commit()
     
-    return jsonify({
-        "code": 200,
-        "msg": "登录成功",
-        "data": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "user_info": {
-                "user_id": user.id,
-                "role": user.role,
-                "name": user.name
-            }
-        }
-    }), 200
+    # return jsonify({
+    #     "code": 200,
+    #     "msg": "登录成功",
+    #     "data": {
+    #         "access_token": access_token,
+    #         "refresh_token": refresh_token,
+    #         "user_info": {
+    #             "user_id": user.id,
+    #             "role": user.role,
+    #             "name": user.name
+    #         }
+    #     }
+    # }), 200
 
 
 
@@ -241,8 +241,9 @@ def login():
         return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
 
     # 生成 JWT 令牌
-    access_token = create_access_token(identity=user.id)
-    refresh_token = create_refresh_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))  # ✅ 确保是字符串
+    refresh_token = create_refresh_token(identity=str(user.id))  # ✅ 确保是字符串
+
 
     user.update_login_time()
     db.session.commit()
@@ -266,8 +267,9 @@ def login():
 @auth_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh_access_token():
-    """使用Refresh Token获取新Access Token"""
-    new_token = create_access_token(identity=current_user)
+    """使用 Refresh Token 获取新 Access Token"""
+    identity = get_jwt_identity()  # ✅ 直接获取 identity
+    new_token = create_access_token(identity=identity)
     return jsonify({
         "code": 200,
         "msg": "令牌刷新成功",
@@ -296,3 +298,51 @@ def logout():
         return jsonify({"code": 500, "msg": "登出失败"}), 500
 
     return jsonify({"code": 200, "msg": "成功登出"}), 200
+
+from flask_jwt_extended import jwt_required, get_jwt_identity  # 导入必要的函数
+from flask import jsonify
+
+@auth_bp.route('/info', methods=['GET'])
+@jwt_required()
+def user_info():
+    try:
+        user_id = get_jwt_identity()
+        print("Fetching user data...")
+        # 使用更高效的查询方式（避免加载无关字段）
+        user = User.query.with_entities(
+            User.id, User.name, User.phone, User.role
+        ).filter_by(id=user_id).first()
+        print("User data fetched:", user)
+        
+        if not user:
+            return jsonify({"code": 404, "msg": "用户未找到"}), 404
+
+        return jsonify({
+            "code": 200,
+            "msg": "获取成功",
+            "data": {
+                "user_id": user.id,
+                "name": user.name,
+                "phone": user.phone,
+                "role": user.role
+            }
+        }),200, {'Content-Type': 'application/json; charset=utf-8'}
+    except Exception as e:
+        print(f"Error in user_info: {e}")
+        return jsonify({"code": 500, "msg": "服务器内部错误"}), 500
+    
+
+@auth_bp.route('/info', methods=['OPTIONS', 'GET'])
+@jwt_required()
+def get_user_info():
+    if request.method == "OPTIONS":
+        return '', 200  # 处理 CORS 预检请求
+    
+    current_user = get_jwt_identity()
+    return jsonify({"user": current_user}), 200
+
+
+
+
+
+

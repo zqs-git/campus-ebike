@@ -2,6 +2,7 @@ from app import create_app  # 从app包导入工厂函数
 
 app = create_app()  # 创建Flask应用实例
 
+
 if __name__ == '__main__':
 
     # 打印关键配置验证
