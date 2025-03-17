@@ -6,6 +6,8 @@ from werkzeug.security import generate_password_hash
 from app.models.users import User
 from app import db
 from sqlalchemy.exc import IntegrityError, OperationalError
+from datetime import datetime, timedelta
+import logging
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -16,7 +18,7 @@ def register():
     支持校内人员（student/staff）和校外访客（visitor）注册
     请求体示例:
     {
-        "user_type": "internal",  # 用户类型 internal-校内人员/external-校外访客
+        "role": "student",  # 用户角色
         "school_id": "20231001",  # 学工号（校内必填）
         "id_card": "11010119900307783X",  # 身份证号（校外必填）
         "name": "张三",
@@ -26,79 +28,80 @@ def register():
     }
     """
     data = request.get_json()
-    # print(f"Received registration data: {data}")  # ✅ 添加调试日志
+    print(f"Received registration data: {data}")  # ✅ 添加调试日志
     if not data:
         return jsonify({"msg": "没有收到数据"}), 400
-    user_type = data.get('user_type')
+    
+    role = data.get('role')
 
     # --------------------------
     # 基础参数校验
     # --------------------------
-    if user_type not in ['internal', 'external']:
-        return jsonify({"code":400, "msg":"无效的用户类型"}),400
+    if role not in ['student', 'staff', 'admin', 'visitor']:
+        return jsonify({"code": 400, "msg": "无效的角色"}), 400
 
-    if not data.get('password') or len(data['password'])<6:
-        return jsonify({"code":400, "msg":"密码需6位以上"}),400
+    if not data.get('password') or len(data['password']) < 6:
+        return jsonify({"code": 400, "msg": "密码需6位以上"}), 400
 
     # --------------------------
     # 分类型校验
     # --------------------------
-    if user_type == 'internal':
+    if role in ['student', 'staff']:
         # 校内人员校验
         if not data.get('school_id'):
-            return jsonify({"code":400, "msg":"学工号不能为空"}),400
+            return jsonify({"code": 400, "msg": "学工号不能为空"}), 400
             
         # 模拟调用教务系统API验证学工号有效性
         if not validate_school_info(data['school_id'], data.get('name')):
-            return jsonify({"code":403, "msg":"学工号验证失败"}),403
+            return jsonify({"code": 403, "msg": "学工号验证失败"}), 403
 
         # 检查学工号重复
         if User.query.filter_by(school_id=data['school_id']).first():
-            return jsonify({"code":409, "msg":"该学工号已注册"}),409
+            return jsonify({"code": 409, "msg": "该学工号已注册"}), 409
 
-    else:
+    if role == 'visitor':
         # 校外访客校验
         if not data.get('id_card') or not data.get('license_plate'):
-            return jsonify({"code":400, "msg":"身份证号和车牌号不能为空"}),400
+            return jsonify({"code": 400, "msg": "身份证号和车牌号不能为空"}), 400
 
         # 模拟公安系统身份核验
         if not validate_id_card(data['id_card']):
-            return jsonify({"code":403, "msg":"身份证号不合法"}),403
+            return jsonify({"code": 403, "msg": "身份证号不合法"}), 403
 
         # 检查车牌是否已被绑定
         if User.query.filter_by(license_plate=data['license_plate']).first():
-            return jsonify({"code":409, "msg":"该车牌号已存在"}),409
+            return jsonify({"code": 409, "msg": "该车牌号已存在"}), 409
 
     try:
         # --------------------------
         # 用户对象创建
         # --------------------------
         new_user = User(
-            school_id=data.get('school_id'),
+            school_id=data.get('school_id') if role in ['student', 'staff'] else None,  # 校内人员插入 school_id
             password=data['password'],  # 自动加密
             phone=data.get('phone'),
             name=data.get('name'),
             license_plate=data.get('license_plate'),
             id_card=data.get('id_card') or None,
-            role='visitor' if user_type=='external' else 'student'  # 角色分配
+            role=role
         )
 
         # 设置访客有效期
-        if user_type == 'external':
+        if role == 'visitor':
             new_user.permission_expire = datetime.utcnow() + timedelta(hours=24)
 
         db.session.add(new_user)
         db.session.commit()
 
         return jsonify({
-            "code":201,
-            "msg":"注册成功",
-            "data":{
+            "code": 201,
+            "msg": "注册成功",
+            "data": {
                 "user_id": new_user.id,
                 "role": new_user.role,
-                "expire_time": new_user.permission_expire.isoformat() if user_type=='external' else None
+                "expire_time": new_user.permission_expire.isoformat() if role == 'visitor' else None
             }
-        }),201
+        }), 201
 
     except IntegrityError as e:
         db.session.rollback()
@@ -114,6 +117,7 @@ def register():
         db.session.rollback()
         print(f"Unknown Error: {e}")  # ✅ 打印未知错误
         return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
+
 
 # --------------------------
 # 模拟验证服务
@@ -208,6 +212,9 @@ def validate_id_card(id_number):
 
 
 
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """用户登录接口"""
@@ -225,29 +232,48 @@ def login():
     if not username or not password:
         return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
 
+    logging.info(f"查询用户名: {username}")
     # 查询用户
     user = User.query.filter(
         (User.phone == username) | 
         (User.school_id == username)
     ).first()
-    
+
     if not user:
+        logging.warning("❌ 用户不存在")
         return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
-    
+
+    logging.info(f"找到用户: ID={user.id}, is_active={user.is_active}")
+
     if not user.is_active:
+        logging.warning("❌ 账户被禁用")
         return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
-    
+
+    logging.info(f"输入密码: {password}")
+    logging.info(f"数据库存储哈希: {user.password_hash}")
+    logging.info(f"密码校验结果: {user.verify_password(password)}")
+
     if not user.verify_password(password):
+        logging.warning("❌ 密码错误")
         return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
+
+    logging.info("✅ 密码正确，生成 JWT")
 
     # 生成 JWT 令牌
     access_token = create_access_token(identity=str(user.id))  # ✅ 确保是字符串
     refresh_token = create_refresh_token(identity=str(user.id))  # ✅ 确保是字符串
 
+    # 直接在查询后更新登录时间，不需要显式调用 db.session.commit() 之前
+    user.last_login = datetime.now()
 
-    user.update_login_time()
-    db.session.commit()
-    
+    try:
+        db.session.commit()  # 提交数据库更改
+        logging.info("✅ 登录时间已成功更新")
+    except Exception as e:
+        db.session.rollback()  # 如果发生异常，回滚事务
+        logging.error(f"❌ 数据库事务回滚，错误信息: {e}")
+        return jsonify({"code": 500, "msg": "数据库操作失败，请稍后再试"}), 500
+
     return jsonify({
         "code": 200,
         "msg": "登录成功",

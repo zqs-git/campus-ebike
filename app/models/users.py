@@ -89,7 +89,13 @@ class User(db.Model):
     last_login = db.Column(db.DateTime, nullable=True)  # ✅ 允许空值
 
     def update_login_time(self):
-        self.last_login = datetime.utcnow()  # 确保有更新方法
+        try:
+            self.last_login = datetime.utcnow()
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"更新登录时间失败: {e}")
+
     
     # 关联关系（一对多）
     # vehicles = db.relationship(

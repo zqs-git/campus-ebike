@@ -12,9 +12,6 @@
       <p>还没有账号？<router-link to="/register">去注册</router-link></p>
     </el-form>
   </div>
-  <div>
-    <el-button type="primary">测试按钮</el-button>
-  </div>
 </template>
 
 <script setup>
@@ -29,31 +26,29 @@ const username = ref("");
 const password = ref("");
 
 const handleLogin = async () => {
-  const role = await authStore.login(username.value, password.value);
-  //console.log("获取的角色:", role);
-  if (role) {
-    //alert("获取到了角色：" + role);
+  const user = await authStore.login(username.value, password.value);
 
-    // 登录成功后获取用户信息
-    //await authStore.fetchUserInfo();
-
-    // 根据角色跳转页面
-    if (role === "admin") {
-      // 如果是管理员，跳转到管理员面板
-      router.push("/admin-dashboard");
-    } else {
-      // 如果是普通用户，跳转到用户信息管理页面
-      router.push("/user-management");
+  if (user && user.role) {
+    // 登录成功后根据角色跳转到不同的页面
+    switch (user.role) {
+      case "admin":
+        router.replace("/admin-dashboard"); // 使用 replace，确保浏览器后退按钮可以返回登录页面
+        break;
+      case "student":
+        router.replace("/student-dashboard"); // 使用 replace 跳转
+        break;
+      case "staff":
+        router.replace("/staff-dashboard"); // 使用 replace 跳转
+        break;
+      case "visitor":
+        router.replace("/visitor-dashboard"); // 使用 replace 跳转
+        break;
+      default:
+        alert("未知角色");
+        break;
     }
   } else {
     alert("登录失败，请检查用户名或密码");
   }
 };
 </script>
-
-<style scoped>
-.login-container {
-  max-width: 400px;
-  margin: 50px auto;
-}
-</style>

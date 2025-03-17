@@ -15,19 +15,24 @@
           placeholder="请输入密码"
         />
       </el-form-item>
-      <el-form-item label="用户类型">
-        <el-select v-model="formData.user_type">
-          <el-option label="校内人员" value="internal"></el-option>
-          <el-option label="校外访客" value="external"></el-option>
+      <el-form-item label="用户角色">
+        <el-select v-model="formData.role">
+          <el-option label="学生" value="student"></el-option>
+          <el-option label="教职工" value="staff"></el-option>
+          <el-option label="管理员" value="admin"></el-option>
+          <el-option label="访客" value="visitor"></el-option>
         </el-select>
       </el-form-item>
-      <el-form-item v-if="formData.user_type === 'internal'" label="学工号">
+      <el-form-item
+        v-if="formData.role === 'student' || formData.role === 'staff'"
+        label="学工号"
+      >
         <el-input v-model="formData.school_id" placeholder="请输入学工号" />
       </el-form-item>
-      <el-form-item v-if="formData.user_type === 'external'" label="身份证号">
+      <el-form-item v-if="formData.role === 'visitor'" label="身份证号">
         <el-input v-model="formData.id_card" placeholder="请输入身份证号" />
       </el-form-item>
-      <el-form-item v-if="formData.user_type === 'external'" label="车牌号">
+      <el-form-item v-if="formData.role === 'visitor'" label="车牌号">
         <el-input v-model="formData.license_plate" placeholder="请输入车牌号" />
       </el-form-item>
       <el-button type="primary" @click="handleRegister">注册</el-button>
@@ -48,7 +53,7 @@ const formData = ref({
   name: "",
   phone: "",
   password: "",
-  user_type: "internal",
+  role: "student", // Default role is 'student'
   school_id: "",
   id_card: "",
   license_plate: "",
