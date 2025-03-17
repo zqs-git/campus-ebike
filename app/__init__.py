@@ -79,6 +79,7 @@ def create_app(config_name='development'):
 
     from app.models import users  # 或者具体的模型模块
     from app.models.users import User
+    from app.models.vehicles import ElectricVehicle
 
     # JWT回调配置
     @jwt.user_lookup_loader
@@ -107,9 +108,11 @@ def register_blueprints(app):
     """集中注册所有路由蓝图"""
     from .routes.auth import auth_bp
     from .routes.main import main_bp
+    from .routes.vehicles import vehicle_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(vehicle_bp)
     
     # 测试专用路由（仅在开发/测试环境加载）
     if app.config.get('DEBUG') or app.config.get('TESTING'):

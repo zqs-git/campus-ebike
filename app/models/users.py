@@ -88,6 +88,14 @@ class User(db.Model):
 
     last_login = db.Column(db.DateTime, nullable=True)  # ✅ 允许空值
 
+
+    # 关联电动车（用户拥有多辆车）
+    vehicles = db.relationship(
+        'ElectricVehicle', 
+        backref='owner', 
+        lazy='dynamic'
+    )
+
     def update_login_time(self):
         try:
             self.last_login = datetime.utcnow()
@@ -97,12 +105,7 @@ class User(db.Model):
             print(f"更新登录时间失败: {e}")
 
     
-    # 关联关系（一对多）
-    # vehicles = db.relationship(
-    #     'Vehicle', 
-    #     backref='owner', 
-    #     lazy='dynamic',
-    # )
+
 
     # region 密码安全方法
     @property

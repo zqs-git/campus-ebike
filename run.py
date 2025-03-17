@@ -2,6 +2,9 @@ from app import create_app  # 从app包导入工厂函数
 
 app = create_app()  # 创建Flask应用实例
 
+print("Registered Routes:")
+for rule in app.url_map.iter_rules():
+    print(f"{rule.endpoint}: {rule}")
 
 if __name__ == '__main__':
 
