@@ -133,85 +133,6 @@ def validate_id_card(id_number):
     return len(id_number) == 18
 
 
-# @auth_bp.route('/login', methods=['POST'])
-# def login():
-    # """
-    # 用户登录接口
-    # ---
-    # tags:
-    #   - 认证
-    # parameters:
-    #   - in: body
-    #     name: body
-    #     required: true
-    #     schema:
-    #       type: object
-    #       properties:
-    #         username:
-    #           type: string
-    #           description: 手机号或学工号
-    #           example: "13800138000"
-    #         password:
-    #           type: string
-    #           description: 登录密码
-    #           example: "TestPass123!"
-    # responses:
-    #   200:
-    #     description: 登录成功返回令牌
-    #   400:
-    #     description: 请求参数缺失
-    #   401:
-    #     description: 用户名或密码错误
-    # """
-    # # 获取请求数据
-    # data = request.get_json()
-    # print(f"Received JSON: {data}")  # ✅ 确保数据正确
-    
-    # # 参数校验
-    # if not data or 'username' not in data or 'password' not in data:
-    #     return jsonify({"code": 400, "msg": "请求必须包含用户名和密码"}), 400
-    
-    # username = data['username'].strip().lower()
-    # password = data['password']
-    
-    # # 查询用户（支持手机号/学工号登录）
-    # user = User.query.filter(
-    #     (User.phone == username) | 
-    #     (User.school_id == username)
-    # ).first()
-    
-    # # 用户不存在或密码错误
-    # if not user or not user.verify_password(password):
-    #     return jsonify({"code": 401, "msg": "用户名或密码错误"}), 401
-    
-    # # 账户状态检查
-    # if not user.is_active:
-    #     return jsonify({"code": 403, "msg": "账户已被禁用"}), 403
-    
-    # # 生成JWT令牌
-    # access_token = create_access_token(identity=user)
-    # refresh_token = create_refresh_token(identity=user)
-    
-    # # 更新登录时间
-    # user.update_login_time()
-    # db.session.commit()
-    
-    # return jsonify({
-    #     "code": 200,
-    #     "msg": "登录成功",
-    #     "data": {
-    #         "access_token": access_token,
-    #         "refresh_token": refresh_token,
-    #         "user_info": {
-    #             "user_id": user.id,
-    #             "role": user.role,
-    #             "name": user.name
-    #         }
-    #     }
-    # }), 200
-
-
-
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 
@@ -260,7 +181,8 @@ def login():
     logging.info("✅ 密码正确，生成 JWT")
 
     # 生成 JWT 令牌
-    access_token = create_access_token(identity=str(user.id))  # ✅ 确保是字符串
+    # user = User.query.filter_by(username=form.username.data).first()
+    access_token = create_access_token(identity=str(user.id),additional_claims={"role": user.role} )  # ✅ 确保是字符串, 添加角色到 JWT claims
     refresh_token = create_refresh_token(identity=str(user.id))  # ✅ 确保是字符串
 
     # 直接在查询后更新登录时间，不需要显式调用 db.session.commit() 之前
@@ -350,7 +272,8 @@ def user_info():
                 "user_id": user.id,
                 "name": user.name,
                 "phone": user.phone,
-                "role": user.role
+                "role": user.role,
+                # 'school_id': user.school_id,
             }
         }),200, {'Content-Type': 'application/json; charset=utf-8'}
     except Exception as e:

@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia';
 import api from '../api/auth';
-
+import { ref } from 'vue';
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: JSON.parse(localStorage.getItem('user')) || null, // 读取本地存储的用户信息
-    token: localStorage.getItem('token') || '', // 读取本地存储的 token
-    isAuthenticated: !!localStorage.getItem('token'), // 判断是否已认证
+    // 使用 `ref` 来保持响应式，同时从 localStorage 中恢复数据
+    user: ref(JSON.parse(localStorage.getItem('user')) || {}),  // 如果 localStorage 中有数据就恢复，没有就设置为空对象
+    token: ref(localStorage.getItem('token') || ''),            // 从 localStorage 获取 token
+    isAuthenticated: ref(!!localStorage.getItem('token')),       // 如果 token 存在，说明已认证
+    role: 'student',                                           // 默认角色为 student
   }),
 
   actions: {
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       console.log("退出登录方法开始执行");
     
-      this.user = null;
+      this.user = {};
       this.token = '';
       this.isAuthenticated = false;
       console.log("清除用户信息和认证状态");

@@ -6,10 +6,11 @@ from .extensions import db,init_extensions,redis_client  # 从扩展文件导入
 import redis
 from datetime import timedelta
 from flask_jwt_extended import JWTManager
-jwt = JWTManager()
+jwt = JWTManager()  # 声明 JWTManager 对象
 from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
+from .permissions import role_required  # 导入权限装饰器（如果需要全局使用）
 
 
 # 定义配置映射字典（配置名称 → 配置类）
@@ -32,6 +33,9 @@ def create_app(config_name='development'):
     # 创建Flask应用实例
     app = Flask(__name__)
 
+    # 配置加载
+    app.config.from_object(config_mapping[config_name])
+
     # 配置日志（生产环境单独配置）
     if app.debug:
         logging.basicConfig(
@@ -51,6 +55,9 @@ def create_app(config_name='development'):
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
         ))
         app.logger.addHandler(file_handler)
+    
+    # 初始化 JWTManager 并关联应用
+    jwt = JWTManager(app)  # 必须传入 app 实例
 
 
     CORS(app,supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:8080"}})

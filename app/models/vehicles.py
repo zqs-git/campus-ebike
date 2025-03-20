@@ -32,3 +32,12 @@ class ElectricVehicle(db.Model):
 
     def __repr__(self):
         return f"<ElectricVehicle {self.plate_number} owned by {self.owner_id}>"
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "model": self.model,
+            "owner_id": self.owner_id,
+            "plate_number": self.plate_number,
+            'status': self.status,
+        }

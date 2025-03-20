@@ -10,6 +10,7 @@ const apiClient = axios.create({
 // 绑定电动车
 export const bindVehicle = async (vehicleData) => {
   const token = localStorage.getItem('token');  // 获取存储的 token
+  if (!token) throw new Error('未找到有效 token');
   try {
     const response = await apiClient.post('/bind', vehicleData, {
       headers: { Authorization: `Bearer ${token}` },
@@ -24,6 +25,7 @@ export const bindVehicle = async (vehicleData) => {
 // 获取绑定的电动车
 export const getMyVehicle = async () => {
   const token = localStorage.getItem('token');
+  if (!token) throw new Error('未找到有效 token');
   try {
     const response = await apiClient.get('/my_vehicle', {
       headers: { Authorization: `Bearer ${token}` },
@@ -35,9 +37,27 @@ export const getMyVehicle = async () => {
   }
 };
 
+
+// 新增获取所有车辆的方法（管理员接口）
+export const getAllVehicles = async () => {
+  const token = localStorage.getItem('token'); // 获取存储的 token
+  if (!token) throw new Error('未找到有效 token');
+  try {
+    const response = await apiClient.get('/admin_vehicle', { 
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('获取所有电动车信息失败', error);
+    throw error;
+  }
+};
+
+
 // 解绑电动车
 export const unbindVehicle = async (vehicleId) => {
   const token = localStorage.getItem('token');
+  if (!token) throw new Error('未找到有效 token');
   try {
     const response = await apiClient.post('/unbind', { vehicle_id: vehicleId }, {
       headers: { Authorization: `Bearer ${token}` },
@@ -52,6 +72,7 @@ export const unbindVehicle = async (vehicleId) => {
 // 更新电动车信息
 export const updateVehicle = async (vehicleId, updates) => {
   const token = localStorage.getItem('token');
+  if (!token) throw new Error('未找到有效 token');
   try {
     const response = await apiClient.put('/update', { vehicle_id: vehicleId, ...updates }, {
       headers: { Authorization: `Bearer ${token}` },

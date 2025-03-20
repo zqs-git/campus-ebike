@@ -3,7 +3,8 @@ from app import db
 from app.models.users import User
 from app.models.vehicles import ElectricVehicle
 from flask_jwt_extended import jwt_required, get_jwt_identity
-
+from app.permissions import role_required  # ✅ 从权限模块导入
+from flask_cors import cross_origin  # ✅ 导入跨域扩展
 vehicle_bp = Blueprint('vehicle', __name__, url_prefix='/api/vehicle')
 
 @vehicle_bp.route('/bind', methods=['POST'])
@@ -67,15 +68,17 @@ def bind_vehicle():
         db.session.add(new_vehicle)
         db.session.commit()
         return jsonify({
-            "code": 201, 
-            "msg": "电动车绑定成功", 
-            "vehicle_id": new_vehicle.id,
-            "plate_number": new_vehicle.plate_number,
-            "brand": new_vehicle.brand,
-            "model": new_vehicle.model,
-            "color": new_vehicle.color,
-            "battery_capacity": new_vehicle.battery_capacity,
-            "status": new_vehicle.status
+            "code": 201,
+            "msg": "电动车绑定成功",
+            "vehicle": {  # 将字段嵌套在 vehicle 对象中
+                "vehicle_id": new_vehicle.id,
+                "plate_number": new_vehicle.plate_number,
+                "brand": new_vehicle.brand,
+                "model": new_vehicle.model,
+                "color": new_vehicle.color,
+                "battery_capacity": new_vehicle.battery_capacity,
+                "status": new_vehicle.status
+            }
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -116,6 +119,20 @@ def get_bound_vehicle():
             "battery_capacity": vehicle.battery_capacity,
             "status": vehicle.status
         }
+    }), 200
+
+
+@vehicle_bp.route('/admin_vehicle', methods=['GET'])
+@jwt_required()
+# @role_required('admin')  # ✅ 只允许管理员访问
+# @cross_origin(origin="http://localhost:8080", supports_credentials=True)  # ✅ 单独配置
+def get_all_vehicles():
+    """获取所有车辆信息（管理员专属接口）"""
+    vehicles = ElectricVehicle.query.all()
+
+    return jsonify({
+        "code": 200,
+        "data": [vehicle.serialize() for vehicle in vehicles]
     }), 200
 
 
@@ -166,8 +183,11 @@ def update_vehicle():
         return jsonify({"code": 400, "msg": "请求数据不完整"}), 400
 
     vehicle_id = data['vehicle_id']
-    new_battery_capacity = data.get('battery_capacity')
-    new_status = data.get('status')
+    new_brand = data.get('brand')
+    new_color = data.get('color')
+    new_model = data.get('model')
+    new_plate_number = data.get('plate_number')
+    new_battery_capacity = data.get('battery_capacity') 
 
     # 获取当前用户
     user_id = get_jwt_identity()
@@ -183,10 +203,19 @@ def update_vehicle():
         return jsonify({"code": 404, "msg": "电动车不存在或不属于当前用户"}), 404
 
     # 更新电动车信息
+    if new_plate_number:
+        existing_vehicle = ElectricVehicle.query.filter_by(plate_number=new_plate_number).first()
+        if existing_vehicle:
+            return jsonify({"code": 400, "msg": "该车牌已被绑定"}), 400
+        vehicle.plate_number = new_plate_number
+    if new_brand:
+        vehicle.brand = new_brand
+    if new_color:
+        vehicle.color = new_color
+    if new_model:
+        vehicle.model = new_model
     if new_battery_capacity:
         vehicle.battery_capacity = new_battery_capacity
-    if new_status:
-        vehicle.status = new_status
 
     try:
         db.session.commit()
@@ -200,9 +229,10 @@ def update_vehicle():
                 "model": vehicle.model,
                 "color": vehicle.color,
                 "battery_capacity": vehicle.battery_capacity,
-                "status": vehicle.status
             }
         }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"code": 500, "msg": "电动车信息更新失败", "details": str(e)}), 500
+
+

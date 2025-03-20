@@ -5,6 +5,7 @@
 
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # 加载 .env 文件中的环境变量（本地开发使用）
 load_dotenv()
@@ -51,7 +52,9 @@ class Config:
     # --------------------------
     
     # JWT签名密钥（需与Flask SECRET_KEY不同）
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-dev-key')  
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-dev-key') 
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)  # 访问令牌默认过期时间（例如 1 小时）
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)  # 刷新令牌默认过期时间（例如 30 天） 
 
     # --------------------------
     # 文件存储配置
@@ -90,6 +93,9 @@ class DevelopmentConfig(Config):
     """
     # 启用调试模式（自动重载代码、显示错误详情）
     DEBUG = True  
+
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)  # 开发环境可设置短时间测试
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     
     # 打印所有SQL语句（调试数据库操作）
     SQLALCHEMY_ECHO = True  
@@ -102,6 +108,9 @@ class ProductionConfig(Config):
     """
     # 强制关闭调试模式
     DEBUG = False  
+
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)  # 生产环境建议更长时间
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=90)
     
     # 优化数据库连接池（根据服务器配置调整）
     SQLALCHEMY_ENGINE_OPTIONS = {

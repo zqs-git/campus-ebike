@@ -3,8 +3,8 @@ import Login from '../components/User_Login.vue';
 import Register from '../components/User_Register.vue';
 import AdminDashboard from '../components/AdminDashboard'; 
 import StudentDashboard from '../components/StudentDashboard'; 
-import StaffDashboard from '../components/StaffDashboard'; 
-import VisitorDashboard from '../components/VisitorDashboard';
+// import StaffDashboard from '../components/StaffDashboard'; 
+// import VisitorDashboard from '../components/VisitorDashboard';
 import { useAuthStore } from '../store/auth'; // 导入authStore，获取用户信息
 
 const routes = [
@@ -12,9 +12,9 @@ const routes = [
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/student-dashboard', component: StudentDashboard },
-  { path: '/staff-dashboard', component: StaffDashboard },
+  { path: '/staff-dashboard', component: StudentDashboard },
   { path: '/admin-dashboard', component: AdminDashboard },
-  { path: '/visitor-dashboard', component: VisitorDashboard },
+  { path: '/visitor-dashboard', component: StudentDashboard },
 ];
 
 const router = createRouter({
