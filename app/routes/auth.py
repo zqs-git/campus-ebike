@@ -3,7 +3,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token,get_jwt,jwt_required,current_user
 from flask_jwt_extended import JWTManager, get_jwt_identity
 from werkzeug.security import generate_password_hash
-from app.models.users import User
+from app.models.users import User,VisitorPass
+from app.models.vehicles import ElectricVehicle
 from app import db
 from sqlalchemy.exc import IntegrityError, OperationalError
 from datetime import datetime, timedelta
@@ -33,6 +34,10 @@ def register():
         return jsonify({"msg": "没有收到数据"}), 400
     
     role = data.get('role')
+    print(f"Received role: {role}")  # ✅ 添加调试日志
+    license_plate = data.get('license_plate', None)  # ✅ 添加车牌号字段
+    print(f"Received license plate: {license_plate}")  # ✅ 添加调试日志
+
 
     # --------------------------
     # 基础参数校验
@@ -63,14 +68,17 @@ def register():
         # 校外访客校验
         if not data.get('id_card') or not data.get('license_plate'):
             return jsonify({"code": 400, "msg": "身份证号和车牌号不能为空"}), 400
+        
+        print(f"Validating ID card: {data['id_card']}")  # ✅ 添加调试日志
+        print(f"Validating license plate: {data['license_plate']}")  # ✅ 添加调试日志
 
-        # 模拟公安系统身份核验
-        if not validate_id_card(data['id_card']):
-            return jsonify({"code": 403, "msg": "身份证号不合法"}), 403
+        # # 模拟公安系统身份核验
+        # if not validate_id_card(data['id_card']):
+        #     return jsonify({"code": 403, "msg": "身份证号不合法"}), 403
 
-        # 检查车牌是否已被绑定
-        if User.query.filter_by(license_plate=data['license_plate']).first():
-            return jsonify({"code": 409, "msg": "该车牌号已存在"}), 409
+        # # 检查车牌是否已被绑定
+        # if User.query.filter_by(license_plate=data['license_plate']).first():
+        #     return jsonify({"code": 409, "msg": "该车牌号已存在"}), 409
 
     try:
         # --------------------------
@@ -81,14 +89,22 @@ def register():
             password=data['password'],  # 自动加密
             phone=data.get('phone'),
             name=data.get('name'),
-            license_plate=data.get('license_plate'),
+            # license_plate=data.get('license_plate'),
             id_card=data.get('id_card') or None,
             role=role
         )
-
-        # 设置访客有效期
+        # 访客需要设置临时通行证
         if role == 'visitor':
-            new_user.permission_expire = datetime.utcnow() + timedelta(hours=24)
+            if not license_plate:
+                return jsonify({"code": 400, "msg": "访客必须提供车牌号"}), 400
+            # 设置车牌号会自动创建 VisitorPass 记录
+            new_user.license_plate = license_plate
+
+        print(f"New user object: {new_user}")  # ✅ 添加调试日志
+
+        # # 设置访客有效期
+        # if role == 'visitor':
+        #     new_user.permission_expire = datetime.utcnow() + timedelta(hours=24)
 
         db.session.add(new_user)
         db.session.commit()
@@ -99,7 +115,7 @@ def register():
             "data": {
                 "user_id": new_user.id,
                 "role": new_user.role,
-                "expire_time": new_user.permission_expire.isoformat() if role == 'visitor' else None
+                # "expire_time": new_user.permission_expire.isoformat() if role == 'visitor' else None
             }
         }), 201
 
@@ -180,6 +196,20 @@ def login():
 
     logging.info("✅ 密码正确，生成 JWT")
 
+    # 访客通行证过期处理
+    if user.role == 'visitor' and not user.is_visitor_pass_valid():
+        # 如果通行证过期，返回需要更新的信息（车牌号等）
+        logging.warning(f"❌ 用户 {user.id} 的访客通行证已过期，无法登录")
+        db.session.rollback()  # 回滚事务
+        return jsonify({
+            "code": 403,
+            "msg": "您的通行证已过期，请更新通行证",
+            "need_update": True,
+            "user_info": {
+                "license_plate": user.license_plate or ''
+            }
+        }), 403
+
     # 生成 JWT 令牌
     # user = User.query.filter_by(username=form.username.data).first()
     access_token = create_access_token(identity=str(user.id),additional_claims={"role": user.role} )  # ✅ 确保是字符串, 添加角色到 JWT claims
@@ -209,6 +239,40 @@ def login():
             }
         }
     }), 200
+
+@auth_bp.route("/updateVisitorPass", methods=["POST"])
+def update_visitor_pass():
+    # 获取请求中的数据
+    data = request.json
+    print(f"Received data: {data}")  # ✅ 添加调试日志
+    license_plate = data.get("license_plate")
+    username = data.get("username")
+
+    if not username or not license_plate:
+        return jsonify({"code": 400, "message": "缺少必要的参数"}), 400
+
+    # 根据用户名查找用户
+    user = User.query.filter_by(phone=username).first()
+    print(f"Found user: {user}")  # ✅ 添加调试日志
+
+    if not user or user.role != "visitor":
+        return jsonify({"code": 403, "message": "权限不足"}), 403
+
+    # **更新或创建访客通行证**
+    if not user.visitor_pass:
+        user.visitor_pass = VisitorPass(
+            user_id=user.id,
+            license_plate=license_plate,
+            expires_at=datetime.utcnow() + timedelta(days=7)  # 设置 7 天有效期
+        )
+    else:
+        user.visitor_pass.license_plate = license_plate
+        user.visitor_pass.expires_at = datetime.utcnow() + timedelta(days=7)
+
+    db.session.commit()
+
+    return jsonify({"success": True, "message": "访客通行证更新成功"})
+
 
 
 
@@ -257,10 +321,17 @@ def user_info():
         user_id = get_jwt_identity()
         print("Fetching user data...")
         # 使用更高效的查询方式（避免加载无关字段）
-        user = User.query.with_entities(
-            User.id, User.name, User.phone, User.role
-        ).filter_by(id=user_id).first()
-        print("User data fetched:", user)
+        # 使用 JOIN 连接查询用户和车辆信息
+        user = db.session.query(
+            User.id,
+            User.name,
+            User.phone,
+            User.role,
+            User.school_id,
+            ElectricVehicle.plate_number.label('license_plate')  # 获取电动车的车牌号
+        ).join(
+            ElectricVehicle, ElectricVehicle.owner_id == User.id, isouter=True  # 外连接，确保即使没有车辆也能获取到用户信息
+        ).filter(User.id == user_id).first()
         
         if not user:
             return jsonify({"code": 404, "msg": "用户未找到"}), 404
@@ -273,13 +344,35 @@ def user_info():
                 "name": user.name,
                 "phone": user.phone,
                 "role": user.role,
-                # 'school_id': user.school_id,
+                'school_id': user.school_id,
+                'license_plate': user.license_plate
             }
         }),200, {'Content-Type': 'application/json; charset=utf-8'}
     except Exception as e:
         print(f"Error in user_info: {e}")
         return jsonify({"code": 500, "msg": "服务器内部错误"}), 500
-    
+
+
+
+@auth_bp.route('/admin_users', methods=['GET'])
+# @role_required('admin')  # ✅ 管理员权限
+@jwt_required()
+def get_all_users():
+    users = User.query.all()  # 查询所有用户
+    return jsonify({
+        "code": 200,
+        "data": [
+            {
+                "user_id": user.id,
+                "name": user.name,
+                "phone": user.phone,
+                "role": user.role,
+                'school_id': user.school_id,
+                'license_plate': user.license_plate
+            } 
+            for user in users
+        ]
+    })
 
 @auth_bp.route('/info', methods=['OPTIONS', 'GET'])
 @jwt_required()
@@ -290,6 +383,32 @@ def get_user_info():
     current_user = get_jwt_identity()
     return jsonify({"user": current_user}), 200
 
+
+@auth_bp.route("/getVisitorInfo", methods=["GET"])
+@jwt_required()  # 需要用户登录
+def get_visitor_info():
+    # 获取当前用户的身份信息
+    user_id = get_jwt_identity()  # 从 JWT 中获取当前用户 ID
+    user = User.query.get(user_id)  # 根据 ID 获取用户信息
+
+    # 判断用户是否是访客
+    if not user or user.role != "visitor":
+        return jsonify({"code": 403, "message": "权限不足"}), 403
+
+    # 查找访客的通行证信息
+    visitor_pass = VisitorPass.query.filter_by(user_id=user.id).first()
+
+    # 构建访客信息的响应
+    visitor_info = {
+        "name": user.name,  # 用户的姓名
+        "phone": user.phone,  # 用户的手机号
+        "role": user.role,  # 用户的角色
+        "license_plate": visitor_pass.license_plate if visitor_pass else "无车牌号",  # 车牌号
+        "created_at": visitor_pass.created_at if visitor_pass else None,  # 通行证创建时间
+        "expires_at": visitor_pass.expires_at if visitor_pass else None  # 通行证失效时间
+    }
+
+    return jsonify({"success": True, "data": visitor_info}), 200
 
 
 

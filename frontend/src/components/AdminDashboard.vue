@@ -58,25 +58,39 @@
             <div class="user-list">
               <h3>用户列表</h3>
               <div class="user-filter">
-                <select>
-                  <option>学生</option>
-                  <option>教职工</option>
-                  <option>访客</option>
+                <select v-model="selectedRole">
+                  <option value="">全部</option>
+                  <option value="student">学生</option>
+                  <option value="staff">教职工</option>
+                  <option value="visitor">访客</option>
                 </select>
               </div>
               <table class="user-table">
                 <thead>
                   <tr>
+                    <th>用户ID</th>
                     <th>用户名</th>
                     <th>角色</th>
+                    <th>手机号</th>
+                    <th>车牌号</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>示例用户</td>
-                    <td>管理员</td>
-                    <td>编辑/删除</td>
+                  <tr v-for="user in filteredUsers" :key="user.id">
+                    <td>{{ user.user_id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.role }}</td>
+                    <td>{{ user.phone }}</td>
+                    <td>{{ user.license_plate }}</td>
+                    <td>
+                      <button @click="handleEdit(user)" class="edit">
+                        编辑
+                      </button>
+                      <button @click="handleDelete(user.id)" class="danger">
+                        删除
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -108,16 +122,15 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="vehicle in allVehicles" :key="vehicle.vehicle_id">
+                  <tr v-for="vehicle in allVehicles" :key="vehicle.id">
                     <td>{{ vehicle.plate_number }}</td>
                     <td>{{ vehicle.owner_id }}</td>
                     <td>{{ vehicle.status }}</td>
                     <td>
-                      <button @click="handleEdit(vehicle)">编辑</button>
-                      <button
-                        @click="handleDelete(vehicle.vehicle_id)"
-                        class="danger"
-                      >
+                      <button @click="showEditForm(vehicle)" class="edit">
+                        编辑
+                      </button>
+                      <button @click="handleDelete(vehicle.id)" class="danger">
                         删除
                       </button>
                     </td>
@@ -125,6 +138,25 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 编辑表单 -->
+            <div v-if="editingVehicle" class="edit-form">
+              <h3>编辑车辆信息</h3>
+              <div class="form-grid">
+                <label>车牌号:</label>
+                <input v-model="editingVehicle.plate_number" type="text" />
+                <label>状态:</label>
+                <select v-model="editingVehicle.status">
+                  <option value="active">正常</option>
+                  <option value="维修中">维修中</option>
+                  <option value="报废">报废</option>
+                </select>
+                <!-- 其他字段... -->
+              </div>
+              <button @click="submitEdit" class="primary">保存</button>
+              <button @click="cancelEdit" class="secondary">取消</button>
+            </div>
+
             <div class="binding-audit">
               <h3>车辆绑定审核</h3>
               <p>审核功能区域</p>
@@ -223,6 +255,68 @@ export default {
     const authStore = useAuthStore();
     const vehicleStore = useVehicleStore();
     const allVehicles = computed(() => vehicleStore.allVehicles);
+    const editingVehicle = ref(null); // 当前编辑的车辆对象
+    const userStore = useAuthStore();
+    const selectedRole = ref(""); // 筛选角色
+
+    // 过滤用户列表
+    const filteredUsers = computed(() => {
+      if (!selectedRole.value) return userStore.allUsers;
+      return userStore.allUsers.filter(
+        (user) => user.role === selectedRole.value
+      );
+    });
+
+    onMounted(async () => {
+      try {
+        // 权限验证：确保是管理员
+        if (authStore.user?.role !== "admin") {
+          alert("无权限访问该功能");
+          return;
+        }
+
+        await userStore.fetchAllUsers(); // ✅ 调用新接口
+      } catch (error) {
+        console.error("加载用户列表失败:", error);
+        alert("加载失败，请重试");
+      }
+    });
+
+    // 编辑功能
+    const showEditForm = (vehicle) => {
+      editingVehicle.value = { ...vehicle }; // 深拷贝避免直接修改原始数据
+    };
+
+    const submitEdit = async () => {
+      try {
+        await vehicleStore.adminupdateVehicle(
+          editingVehicle.value.id,
+          editingVehicle.value
+        );
+        editingVehicle.value = null;
+        alert("编辑成功！");
+      } catch (error) {
+        console.error("编辑失败:", error);
+        alert("编辑失败，请检查输入信息！");
+      }
+    };
+
+    const cancelEdit = () => {
+      editingVehicle.value = null;
+    };
+
+    // 删除功能
+    const handleDelete = async (vehicleId) => {
+      if (confirm("确定删除该车辆？")) {
+        try {
+          await vehicleStore.deleteVehicle(vehicleId);
+          alert("删除成功！");
+        } catch (error) {
+          console.error("删除失败:", error);
+          alert("删除失败，请重试！");
+        }
+      }
+    };
 
     onMounted(async () => {
       try {
@@ -231,7 +325,6 @@ export default {
           alert("无权限访问该功能");
           return;
         }
-
         await vehicleStore.fetchAllVehicles(); // 调用新方法获取数据
       } catch (error) {
         console.error("加载车辆列表失败:", error);
@@ -256,6 +349,13 @@ export default {
       logout,
       navigate,
       allVehicles,
+      selectedRole,
+      filteredUsers,
+      editingVehicle,
+      showEditForm,
+      submitEdit,
+      cancelEdit,
+      handleDelete,
     };
   },
 };
@@ -299,6 +399,16 @@ export default {
   background-color: #f1f3f5;
 }
 
+.user-table td:last-child button.danger {
+  background-color: #dc3545;
+  margin-left: 10px;
+}
+
+.user-table td:last-child button.edit {
+  background-color: rgb(55, 182, 46);
+  margin-left: 10px;
+}
+
 .vehicle-management {
   display: flex;
   flex-direction: column;
@@ -327,6 +437,16 @@ export default {
 
 .vehicle-table tr:hover {
   background-color: #f1f3f5;
+}
+
+.vehicle-table td:last-child button.danger {
+  background-color: #dc3545;
+  margin-left: 10px;
+}
+
+.vehicle-table td:last-child button.edit {
+  background-color: rgb(55, 182, 46);
+  margin-left: 10px;
 }
 
 .parking-management {
@@ -433,5 +553,33 @@ h2 {
   margin-bottom: 15px;
   border-bottom: 1px solid #dee2e6;
   padding-bottom: 10px;
+}
+
+.edit-form {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 600px;
+  z-index: 1000;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.edit-form input,
+.edit-form select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
 }
 </style>

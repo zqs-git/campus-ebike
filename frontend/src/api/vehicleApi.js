@@ -83,3 +83,20 @@ export const updateVehicle = async (vehicleId, updates) => {
     throw error;
   }
 };
+
+export const admin_updateVehicle = (vehicleId, updates) => {
+  const token = localStorage.getItem('token');
+  return apiClient.put(
+    `/admin_update_vehicles/${vehicleId}`, 
+    updates,
+    { headers: { Authorization: `Bearer ${token}` } }
+  ).then(response => response.data);
+};
+
+export const deleteVehicle = (vehicleId) => {
+  const token = localStorage.getItem('token');
+  return apiClient.delete(
+    `/admin_delete_vehicles/${vehicleId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  ).then(response => response.data);
+};

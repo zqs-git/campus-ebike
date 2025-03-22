@@ -18,4 +18,13 @@ api.interceptors.request.use(config => {
   return config;
 });
 
+export const getAllUsers = async () => {
+  // 直接返回 Promise，错误由调用方处理
+  return api.get('/admin_users').then(response => response.data);
+};
+
+export const getVisitorInfo = async () => {
+    return api.get('/getVisitorInfo').then(response => response.data);
+};
+
 export default api;

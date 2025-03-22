@@ -236,3 +236,29 @@ def update_vehicle():
         return jsonify({"code": 500, "msg": "电动车信息更新失败", "details": str(e)}), 500
 
 
+@vehicle_bp.route('/admin_update_vehicles/<int:vehicle_id>', methods=['PUT'])
+# @role_required('admin')
+@jwt_required()
+def admin_update_vehicles(vehicle_id):
+    data = request.json
+    vehicle = ElectricVehicle.query.get(vehicle_id)
+    if not vehicle:
+        return jsonify({"code": 404, "msg": "车辆不存在"}), 404
+    # 更新字段
+    vehicle.plate_number = data.get('plate_number', vehicle.plate_number)
+    vehicle.status = data.get('status', vehicle.status)
+    # 其他字段...
+    db.session.commit()
+    return jsonify({"code": 200, "msg": "更新成功", "vehicle": vehicle.serialize()})
+
+@vehicle_bp.route('/admin_delete_vehicles/<int:vehicle_id>', methods=['DELETE'])
+# @role_required('admin')
+@jwt_required()
+def delete_vehicle(vehicle_id):
+    vehicle = ElectricVehicle.query.get(vehicle_id)
+    if not vehicle:
+        return jsonify({"code": 404, "msg": "车辆不存在"}), 404
+    db.session.delete(vehicle)
+    db.session.commit()
+    return jsonify({"code": 200, "msg": "删除成功"})
+

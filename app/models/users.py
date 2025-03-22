@@ -1,6 +1,6 @@
 # app/models/user.py
 from app import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import CheckConstraint, Index
 
@@ -83,8 +83,8 @@ class User(db.Model):
     name = db.Column(db.String(50))  # 姓名
     id_card = db.Column(db.String(18), unique=True, nullable=True)  # 身份证号
     
-    license_plate = db.Column(db.String(15))  # 车牌号
-    permission_expire = db.Column(db.DateTime, nullable=True)  # 权限有效期（访客专用）
+    # license_plate = db.Column(db.String(15))  # 车牌号
+    # permission_expire = db.Column(db.DateTime, nullable=True)  # 权限有效期（访客专用）
 
     last_login = db.Column(db.DateTime, nullable=True)  # ✅ 允许空值
 
@@ -96,6 +96,14 @@ class User(db.Model):
         lazy='dynamic'
     )
 
+    # 关联访客通行证（用户拥有一个通行证）
+    visitor_pass = db.relationship(
+        'VisitorPass',
+        backref='user',
+        uselist=False,
+        cascade="all, delete"
+    )
+
     def update_login_time(self):
         try:
             self.last_login = datetime.utcnow()
@@ -104,7 +112,33 @@ class User(db.Model):
             db.session.rollback()
             print(f"更新登录时间失败: {e}")
 
-    
+
+    @property
+    def license_plate(self):
+        """根据角色返回对应的车牌号"""
+        if self.role == 'visitor':
+            return self.visitor_pass.license_plate if self.visitor_pass else None
+        else:
+            # 学生/教职工通过关联车辆获取车牌号
+            return self.vehicles.first().plate_number if self.vehicles else None
+        
+    @license_plate.setter
+    def license_plate(self, plate):
+        """仅允许访客设置车牌号"""
+        if self.role != 'visitor':
+            raise ValueError("非访客用户不能直接设置车牌号！")
+        # 创建或更新访客通行证
+        if not self.visitor_pass:
+            self.visitor_pass = VisitorPass(license_plate=plate,expires_at=datetime.utcnow() + timedelta(days=7))
+        else:
+            self.visitor_pass.license_plate = plate
+            self.visitor_pass.expires_at = datetime.utcnow() + timedelta(days=7)  # 设置默认有效期
+
+    def is_visitor_pass_valid(self):
+        """检查访客通行证是否仍然有效"""
+        if self.role != 'visitor' or not self.visitor_pass:
+            return False  # 不是访客，或者没有通行证 -> 无效
+        return datetime.utcnow() < self.visitor_pass.expires_at  # 过期时间未到 -> 有效
 
 
     # region 密码安全方法
@@ -133,3 +167,16 @@ class User(db.Model):
         """更新最后登录时间"""
         from datetime import datetime
         self.last_login = datetime.utcnow()
+
+
+#访客通行证模型
+class VisitorPass(db.Model):
+    __tablename__ = 'visitor_passes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    license_plate = db.Column(db.String(15), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)  # 临时通行证有效期
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<VisitorPass {self.license_plate} expires at {self.expires_at}>"

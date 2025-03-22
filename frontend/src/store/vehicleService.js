@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getMyVehicle, bindVehicle, unbindVehicle, updateVehicle, getAllVehicles } from '../api/vehicleApi';
+import { getMyVehicle, bindVehicle, unbindVehicle, updateVehicle, getAllVehicles,deleteVehicle,admin_updateVehicle  } from '../api/vehicleApi';
 
 export const useVehicleStore = defineStore('vehicle', {
   state: () => ({
@@ -85,5 +85,32 @@ export const useVehicleStore = defineStore('vehicle', {
         console.error('更新电动车信息失败', error);
       }
     },
+
+    async adminupdateVehicle(vehicleId, updates) {
+      try {
+        const response = await admin_updateVehicle(vehicleId, updates);
+        if (response.code === 200) {
+          // 更新本地列表
+          const index = this.allVehicles.findIndex(v => v.id === vehicleId);
+          if (index !== -1) {
+            this.allVehicles[index] = { ...this.allVehicles[index], ...updates };
+          }
+        }
+      } catch (error) {
+        console.error("编辑车辆失败:", error);
+      }
+    },
+
+    async deleteVehicle(vehicleId) {
+      try {
+        await deleteVehicle(vehicleId);
+        // 从列表中移除
+        this.allVehicles = this.allVehicles.filter(v => v.id !== vehicleId);
+      } catch (error) {
+        console.error("删除车辆失败:", error);
+      }
+    },
+
+
   },
 });

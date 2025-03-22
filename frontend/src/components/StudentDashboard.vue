@@ -9,9 +9,21 @@
       <div class="sidebar">
         <ul>
           <!-- 公共菜单项 -->
-          <li v-if="!isAdmin" @click="navigate('personalInfo')">个人信息</li>
-          <li v-if="!isAdmin" @click="navigate('vehicleManagement')">
+          <li v-if="isStaff && isStudent" @click="navigate('personalInfo')">
+            个人信息
+          </li>
+          <li
+            v-if="isStaff && isStudent"
+            @click="navigate('vehicleManagement')"
+          >
             电动车管理
+          </li>
+          <!-- 访客菜单项 -->
+          <li
+            v-if="!isAdmin && !isStaff && !isStudent"
+            @click="navigate('visitorInfo')"
+          >
+            访客通行证
           </li>
           <li v-if="!isAdmin" @click="navigate('mapNavigation')">地图导航</li>
           <li v-if="isStudentOrStaff" @click="navigate('parkingManagement')">
@@ -36,7 +48,8 @@
             <div><strong>角色：</strong>{{ user.role }}</div>
             <div><strong>电话：</strong>{{ user.phone }}</div>
             <div>
-              <strong>车牌：</strong>{{ user.plate_number || "未绑定" }}
+              <strong>车牌：</strong>
+              {{ user.license_plate ? user.license_plate : "未绑定" }}
             </div>
           </div>
           <div v-else>
@@ -188,6 +201,33 @@
           </div>
         </div>
 
+        <!-- 访客通行证页面 -->
+        <div v-if="activePage === 'visitorInfo'" class="visitor-profile">
+          <h2>访客信息</h2>
+          <div v-if="visitorInfo" class="visitor-profile">
+            <div class="profile-item">
+              <strong>姓名:</strong> {{ visitorInfo.name }}
+            </div>
+            <div class="profile-item">
+              <strong>手机号:</strong> {{ visitorInfo.phone }}
+            </div>
+            <div class="profile-item">
+              <strong>车牌号:</strong> {{ visitorInfo.license_plate }}
+            </div>
+            <div class="profile-item">
+              <strong>通行证有效期:</strong>
+              {{
+                visitorInfo.expires_at
+                  ? new Date(visitorInfo.expires_at).toLocaleString()
+                  : "未绑定"
+              }}
+            </div>
+          </div>
+          <div v-else class="loading">
+            <p>正在加载访客信息...</p>
+          </div>
+        </div>
+
         <div v-if="activePage === 'mapNavigation'" class="section">
           <h2>地图导航</h2>
           <p>显示导航功能和路径规划。</p>
@@ -231,6 +271,7 @@ export default {
   setup() {
     const router = useRouter(); // 获取路由对象
     const authStore = useAuthStore(); // 获取 auth store（用于管理认证状态）
+    const visitorInfo = computed(() => authStore.visitorInfo);
     const vehicleStore = useVehicleStore(); // 获取 Pinia 车辆 store
     const successMessage = ref(""); // 用于显示成功提示
     const userRole = computed(() => {
@@ -289,6 +330,15 @@ export default {
       if (!user.value?.name) {
         // 如果没有用户信息
         authStore.fetchUserInfo(); // 请求并更新用户信息
+      }
+    });
+
+    //获取访客信息
+    onMounted(async () => {
+      try {
+        await authStore.fetchVisitorInfo(); // ✅ 调用接口获取数据
+      } catch (error) {
+        console.error("获取访客信息失败:", error);
       }
     });
 
@@ -385,6 +435,7 @@ export default {
       isStudent,
       isStudentOrStaff,
       user,
+      visitorInfo,
     };
   },
 };
@@ -601,5 +652,17 @@ h2 {
   text-align: center; /* 文字居中 */
   max-width: 400px; /* 最大宽度 */
   z-index: 1000; /* 确保在最上层 */
+}
+
+.visitor-profile {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.profile-item {
+  margin-bottom: 10px;
+  font-size: 16px;
 }
 </style>
