@@ -87,6 +87,8 @@ def create_app(config_name='development'):
     from app.models import users  # 或者具体的模型模块
     from app.models.users import User
     from app.models.vehicles import ElectricVehicle
+    from app.models.location import CampusLocation
+    # -------------------------------- 
 
     # JWT回调配置
     @jwt.user_lookup_loader

@@ -230,6 +230,7 @@
 
         <div v-if="activePage === 'mapNavigation'" class="section">
           <h2>地图导航</h2>
+          <MapNavigation />
           <p>显示导航功能和路径规划。</p>
         </div>
 
@@ -266,6 +267,7 @@ import { ref, onMounted, computed } from "vue"; // 导入 ref
 import { useRouter } from "vue-router"; // 导入 useRouter
 import { useAuthStore } from "../store/auth"; // 导入 auth store（假设使用 Pinia）
 import { useVehicleStore } from "../store/vehicleService"; // 引入车辆管理 store
+import MapNavigation from "@/components/MapNavigation.vue"; // 引入 MapNavigation 组件
 
 export default {
   setup() {
@@ -436,6 +438,7 @@ export default {
       isStudentOrStaff,
       user,
       visitorInfo,
+      MapNavigation,
     };
   },
 };
