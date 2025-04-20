@@ -13,33 +13,40 @@ export const useAreaStore = defineStore('areaStore', {
     async loadAreasFromServer() {
       try {
         const { data } = await getAreas()
-        // 在这里处理数据，以确保包含 path 和 center 字段
         this.list = data.map(area => ({
           id: area.id,
           name: area.name,
           type: area.type,
-          path: area.path || [],  // 如果没有路径数据，默认空数组
-          center: area.center || { lng: 0, lat: 0 },  // 如果没有中心点数据，默认值
+          path: area.path || [],
+          // 重点：把后台给的经纬度字段映射出来
+          latitude: area.latitude ?? area.center?.lat ?? (area.path?.[0]?.[1] || 0),
+          longitude: area.longitude ?? area.center?.lng ?? (area.path?.[0]?.[0] || 0),
+          // 如果你也需要中心点，保留它
+          center: area.center || { lng: 0, lat: 0 },
+          description: area.description || ''
         }))
       } catch (err) {
         console.error('加载区域失败', err)
       }
     },
+    
 
     /**
-     * 提交新区域到后端，并将返回的 id 添加到本地列表
-     * @param {{ name: string, type: string, path: Array<[number, number]>, center: { lng: number, lat: number } }} area
+     * @param {{ name: string, type: string, path: Array<[number, number]>, center: { lng: number, lat: number }, description?: string }} area
      */
+
     async saveAreaToServer(area) {
       try {
         const response = await createArea(area)
         const id = response.data.id
-        // 将新的区域添加到列表中
-        this.list.push({ ...area, id })
+        const newArea = { ...area, id }
+        this.list.push(newArea)
+        return newArea // ✅ 添加这一行，返回完整对象
       } catch (err) {
         console.error('保存区域失败', err)
+        throw err // ✅ 建议抛出错误，让调用者可以 catch
       }
-    },
+    },    
 
     /**
      * 更新区域信息

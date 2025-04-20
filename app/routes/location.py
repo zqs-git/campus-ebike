@@ -133,9 +133,10 @@ def get_areas():
         payload.append({
             'id': a.id,
             'name': a.name,
-            'path': a.path,  
+            'path': a.path,
             'center': { 'lng': a.longitude, 'lat': a.latitude },
-            'type': a.location_type
+            'type': a.location_type,
+            'description': a.description  # Include description
         })
     return jsonify(payload), 200
 
@@ -148,7 +149,8 @@ def get_area(area_id):
         'name': a.name,
         'path': a.path,
         'center': { 'lng': a.longitude, 'lat': a.latitude },
-        'type': a.location_type
+        'type': a.location_type,
+        'description': a.description  # Include description
     }), 200
 
 # POST /api/areas
@@ -157,29 +159,23 @@ def create_area():
     data = request.get_json() or {}
     name     = data.get('name')
     path     = data.get('path')      # [[lng, lat], ...]
-    center   = data.get('center')    # 可能是 dict、也可能是 list、甚至 None
+    center   = data.get('center')    # Could be a dict, list, or None
     loc_type = data.get('type')
-    # 前端也可能直接传 latitude/longitude
+    description = data.get('description', '')  # Optional description
     lat_val  = data.get('latitude')
     lng_val  = data.get('longitude')
 
-    # 如果 center 是 list → 转成 dict
+    # If center is a list, convert to dict
     if isinstance(center, list) and len(center) >= 2:
         center = {'lng': center[0], 'lat': center[1]}
 
-    # 如果 center 还是不是 dict，就 fallback 到 latitude/longitude
+    # If center is still not a dict, fallback to latitude/longitude
     if not isinstance(center, dict):
         center = {'lng': lng_val, 'lat': lat_val}
 
-    # 必填验证
-    if not all([
-        name,
-        isinstance(path, list) and len(path) > 0,
-        center.get('lat') is not None,
-        center.get('lng') is not None,
-        loc_type
-    ]):
-        abort(400, '缺少 name, path, center 或 type 字段')
+    # Validation
+    if not all([name, isinstance(path, list) and len(path) > 0, center.get('lat') is not None, center.get('lng') is not None, loc_type]):
+        abort(400, 'Missing name, path, center, or type fields')
 
     try:
         a = CampusLocation(
@@ -187,7 +183,8 @@ def create_area():
             latitude       = center['lat'],
             longitude      = center['lng'],
             location_type  = loc_type,
-            path           = path
+            path           = path,
+            description    = description  # Save the description
         )
         db.session.add(a)
         db.session.commit()
@@ -195,7 +192,7 @@ def create_area():
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        abort(500, f'数据库错误：{e}')
+        abort(500, f'Database error: {e}')
 
 
 # DELETE /api/areas/<id>
@@ -209,3 +206,39 @@ def delete_area(area_id):
     except SQLAlchemyError as e:
         db.session.rollback()
         abort(500, f'数据库错误：{e}')
+
+# 更新地点信息
+# PUT /api/areas/<id>
+@locations_bp.route('/<int:area_id>', methods=['PUT'])
+def update_area(area_id):
+    # Get the area to update
+    area = CampusLocation.query.get_or_404(area_id)
+    
+    # Get data from the request
+    data = request.get_json() or {}
+    name = data.get('name')
+    path = data.get('path')  # Path should be a list of coordinates, [[lng, lat], ...]
+    center = data.get('center')  # Center is a dict with lat and lng
+    loc_type = data.get('type')
+    description = data.get('description')  # New description field
+    
+    # Update fields if new data is provided
+    if name:
+        area.name = name
+    if path:
+        area.path = path
+    if center:
+        area.latitude = center.get('lat', area.latitude)
+        area.longitude = center.get('lng', area.longitude)
+    if loc_type:
+        area.location_type = loc_type
+    if description is not None:  # Update description if provided
+        area.description = description
+    
+    # Commit the changes to the database
+    try:
+        db.session.commit()
+        return jsonify({'id': area.id, 'name': area.name, 'path': area.path, 'center': {'lng': area.longitude, 'lat': area.latitude}, 'type': area.location_type, 'description': area.description}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        abort(500, f'Database error: {e}')
