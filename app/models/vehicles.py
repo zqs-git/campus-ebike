@@ -15,7 +15,7 @@ class ElectricVehicle(db.Model):
 
     # 车辆基本信息
     brand = db.Column(db.String(50), nullable=False, comment="车辆品牌")
-    model = db.Column(db.String(50), nullable=False, comment="车辆型号")
+    model = db.Column(db.String(50), nullable=True, comment="车辆型号")
     color = db.Column(db.String(20), nullable=True, comment="车辆颜色")
     
     # 车牌号，唯一约束
@@ -30,6 +30,11 @@ class ElectricVehicle(db.Model):
     # 车辆状态（active=使用中, inactive=停用）
     status = db.Column(db.String(10), default='active', nullable=False, comment="车辆状态")
 
+    image_url = db.Column(db.String(255))  # 存储图片的 URL
+
+    # # 建立关联
+    # owner = db.relationship('User', backref='vehicles')
+
     def __repr__(self):
         return f"<ElectricVehicle {self.plate_number} owned by {self.owner_id}>"
     
@@ -40,4 +45,8 @@ class ElectricVehicle(db.Model):
             "owner_id": self.owner_id,
             "plate_number": self.plate_number,
             'status': self.status,
+            "brand": self.brand,
+            "color": self.color,
+            "image_url": self.image_url,
+            'owner_name': self.owner.name if self.owner else None,
         }

@@ -2,118 +2,88 @@ import { defineStore } from 'pinia';
 import api from '../api/auth';
 import { ref } from 'vue';
 import { getAllUsers } from '../api/auth'; // 新增导入
-import { getVisitorInfo } from '../api/auth'; // ✅ 新增导入
+import { getVisitorInfo } from '../api/auth'; // 新增导入
+import { updateUserInfo } from '../api/auth'; // 新增导入
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    // 使用 `ref` 来保持响应式，同时从 localStorage 中恢复数据
-    user: ref(JSON.parse(localStorage.getItem('user')) || {}),  // 如果 localStorage 中有数据就恢复，没有就设置为空对象
-    token: ref(localStorage.getItem('token') || ''),            // 从 localStorage 获取 token
-    isAuthenticated: ref(!!localStorage.getItem('token')),       // 如果 token 存在，说明已认证
-    role: 'student',                                           // 默认角色为 student
-    allUsers: ref([]), // 存储所有用户数据
-    visitorInfo: ref(null), // ✅ 新增访客信息字段
+    user: ref(JSON.parse(localStorage.getItem('user')) || {}),
+    token: ref(localStorage.getItem('token') || ''),
+    isAuthenticated: ref(!!localStorage.getItem('token')),
+    role: 'student',
+    allUsers: ref([]),
+    visitorInfo: ref(null),
+    updateError: ref(''),
   }),
 
   actions: {
     async login(username, password) {
       try {
         const response = await api.post('/login', { username, password });
-
-        // 检查是否需要更新通行证
         if (response.data.code === 403 && response.data.need_update) {
-          // 显示提示信息：通行证已过期
           alert("尚未注册通行证/通行证已过期，请更新通行证");
-          this.showUpdateForm(response.data.user_info);  // 展示更新通行证表单
+          this.showUpdateForm(response.data.user_info);
           return { 
             need_update: true, 
             license_plate: response.data.user_info?.license_plate || "" 
           };
         }
-
-        console.log("登录响应:", response?.data);  // 添加日志，检查返回的数据
+        console.log("登录响应:", response?.data);
         if (!response?.data?.data?.access_token) {
           throw new Error("登录响应格式错误");
         }
-
-        // 保存 Token
         const token = response.data.data.access_token;
         localStorage.setItem("token", token);
         this.token = token;
-        // 更新认证状态
         this.isAuthenticated = true;
-        // 获取用户信息
         const user = await this.fetchUserInfo();
-        console.log("获取到的用户信息:", user); // 添加日志，检查用户信息
-    
-        // 确保用户信息有效
+        console.log("获取到的用户信息:", user);
         if (!user?.role) {
           throw new Error("用户角色未定义");
         }
-    
-        // 将用户信息存入本地存储
         localStorage.setItem('user', JSON.stringify(user));
-    
-        // 更新用户信息
+        localStorage.setItem('userId', user.user_id);
         this.user = user;
-    
-        return user; // 登录成功后返回角色
-    
+        return user;
       } catch (error) {
         console.error("登录失败:", error.message);
-
-        // 处理 403 错误并弹出表单
         if (error.response && error.response.status === 403 && error.response.data.need_update) {
-          // 显示提示信息：通行证已过期
           alert("尚未注册通行证/通行证已过期，请更新通行证");
-          this.showUpdateForm(error.response.data.user_info);  // 展示更新通行证表单
-          return { 
-            need_update: true,  
-          };
+          this.showUpdateForm(error.response.data.user_info);
+          return { need_update: true };
         }
-
-        this.logout(); // 避免存储无效 token
+        this.logout();
         throw error;
       }
     },
 
-
     showUpdateForm(userInfo) {
-      this.showForm = true;  // 显示弹窗
-      this.licensePlate = userInfo.license_plate || '';  // 设置默认车牌号
+      this.showForm = true;
+      this.licensePlate = userInfo.license_plate || '';
     },
-  
-    async updateVisitorPass(visitorUsername,licensePlate) {
-      try {
 
+    async updateVisitorPass(visitorUsername, licensePlate) {
+      try {
         console.log("更新通行证请求，车牌号:", licensePlate);
         console.log("更新通行证请求，访客用户名:", visitorUsername);
-        // console.log("更新通行证请求，访客密码:",visitorPassword);
         const response = await api.post('/updateVisitorPass', {
-          username: visitorUsername,  // 传递用户名
-          // password: visitorPassword,  // 传递密码
-          license_plate:licensePlate
+          username: visitorUsername,
+          license_plate: licensePlate
         });
-
-        
-  
-        // 更新通行证成功后，自动登录并跳转
         if (response.data.success) {
           alert("通行证已更新，请重新登录...");
-          // console.log(visitorUsername, visitorPassword);
-          // await this.login(visitorUsername, visitorPassword);  // 使用用户的用户名和密码重新登录
         } else {
           console.error("更新通行证失败:", response.data.message);
-          // alert("更新通行证失败，请稍后重试");
         }
       } catch (error) {
-        console.error("请求发生错误:", error.response || error);  // 输出详细的错误信息
+        console.error("请求发生错误:", error.response || error);
       }
     },
 
     async fetchVisitorInfo() {
       try {
         const response = await getVisitorInfo();
-        this.visitorInfo = response.data; // ✅ 存储访客信息
+        this.visitorInfo = response.data;
       } catch (error) {
         if (error.response?.status === 403) {
           alert("权限不足：仅访客可访问该信息");
@@ -122,10 +92,6 @@ export const useAuthStore = defineStore('auth', {
         }
       }
     },
-
-
-
-
 
     async register(userData) {
       try {
@@ -137,16 +103,49 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    
+    async updateUser(updatedData) {
+      try {
+        const result = await updateUserInfo(updatedData);
+        if (result && result.code === 200) {
+          await this.fetchUserInfo();
+          this.updateError = "";
+          return { success: true };
+        } else {
+          const errMsg = result?.msg || "更新失败";
+          const detail = result?.detail || "";
+          this.updateError = `${errMsg}${detail ? `：${detail}` : ""}`;
+          return { success: false, msg: this.updateError };
+        }
+      } catch (error) {
+        console.error("更新用户信息失败：", error);
+        this.updateError = "更新失败，请稍后再试！";
+        return { success: false, msg: this.updateError };
+      }
+    },
+
+    // 新增删除用户方法
+    async deleteUser(userId) {
+      try {
+        const response = await api.delete(`/admin/users/${userId}`);
+        const result = response.data;
+        if (result.code === 200) {
+          await this.fetchAllUsers();
+          return { success: true };
+        } else {
+          throw new Error(result.msg || "删除失败");
+        }
+      } catch (error) {
+        console.error("删除用户失败:", error);
+        throw error;
+      }
+    },
 
     logout() {
       console.log("退出登录方法开始执行");
-    
       this.user = {};
       this.token = '';
       this.isAuthenticated = false;
       console.log("清除用户信息和认证状态");
-    
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       console.log("从 localStorage 中移除 token 和 user");
@@ -157,29 +156,21 @@ export const useAuthStore = defineStore('auth', {
         if (!this.token) {
           throw new Error("未找到 Token，请重新登录");
         }
-
         const response = await api.get("/info", {
           headers: { Authorization: `Bearer ${this.token}` },
           timeout: 20000,
         });
-
-        console.log("用户信息响应:", response?.data); // 添加日志，检查返回的用户信息
-
+        console.log("用户信息响应:", response?.data);
         if (!response?.data?.data) {
           throw new Error("用户信息格式错误");
         }
-
         this.user = response.data.data;
-
-        // 缓存用户信息到 localStorage
         localStorage.setItem('user', JSON.stringify(this.user));
-
         return this.user;
-
       } catch (error) {
         console.error("获取用户信息失败:", error.message);
         if (error.response?.status === 401) {
-          this.logout(); // 401 代表 token 失效，清除状态
+          this.logout();
         }
         throw error;
       }
@@ -188,8 +179,9 @@ export const useAuthStore = defineStore('auth', {
     async fetchAllUsers() {
       try {
         const response = await getAllUsers();
-        if (response.code === 200) {
-          this.allUsers = response.data; // 更新状态
+        if (response.code === 200 && Array.isArray(response.data)) {
+          // 过滤掉无效的用户对象
+          this.allUsers = response.data.filter(user => user && user.user_id);
         } else {
           this.allUsers = [];
           throw new Error(response.msg);
@@ -198,9 +190,10 @@ export const useAuthStore = defineStore('auth', {
         console.error("获取用户列表失败:", error);
         if (error.response?.status === 401) {
           alert("登录已过期，请重新登录");
-          // 跳转登录页
         }
       }
-    },
+    }
+    
+    
   },
 });

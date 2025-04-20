@@ -10,24 +10,18 @@
         <ul>
           <!-- 系统仪表盘 -->
           <li @click="navigate('systemDashboard')">系统仪表盘</li>
-
           <!-- 用户管理 -->
           <li @click="navigate('userManagement')">用户管理</li>
-
           <!-- 车辆管理 -->
           <li @click="navigate('vehicleManagement')">电动车管理</li>
-
           <!-- 停车场管理 -->
-          <li @click="navigate('parkingManagement')">停车场管理</li>
-
+          <li @click="navigate('parkingManagement')">停车场充电区管理</li>
           <!-- 积分管理 -->
           <li @click="navigate('scoreManagement')">积分管理</li>
-
-          <!-- 系统设置 -->
-          <li @click="navigate('systemSettings')">系统设置</li>
-
           <!-- 通知管理 -->
           <li @click="navigate('notifications')">通知管理</li>
+          <!-- 系统设置 -->
+          <li @click="navigate('systemSettings')">系统设置</li>
         </ul>
       </div>
 
@@ -41,30 +35,30 @@
               <p>数据展示区域</p>
             </div>
             <div class="widget">
-              <h3>停车场使用率</h3>
+              <h3>充电桩使用数据</h3>
               <p>数据展示区域</p>
             </div>
             <div class="widget">
               <h3>违规记录统计</h3>
               <p>数据展示区域</p>
             </div>
+            <div class="widget">
+              <h3>访客记录统计</h3>
+              <p>数据展示区域</p>
+            </div>
           </div>
         </div>
 
-        <!-- 用户管理 -->
+        <!-- 用户管理模块 -->
         <div v-if="activePage === 'userManagement'" class="section">
           <h2>用户管理</h2>
+          <!-- 搜索输入框 -->
+          <div class="search-box">
+            <input type="text" v-model="searchText" placeholder="搜索用户名、手机号、学工号或车牌号" />
+          </div>
           <div class="user-management">
             <div class="user-list">
               <h3>用户列表</h3>
-              <div class="user-filter">
-                <select v-model="selectedRole">
-                  <option value="">全部</option>
-                  <option value="student">学生</option>
-                  <option value="staff">教职工</option>
-                  <option value="visitor">访客</option>
-                </select>
-              </div>
               <table class="user-table">
                 <thead>
                   <tr>
@@ -73,35 +67,77 @@
                     <th>角色</th>
                     <th>手机号</th>
                     <th>车牌号</th>
+                    <th>学工号</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="user in filteredUsers" :key="user.id">
-                    <td>{{ user.user_id }}</td>
-                    <td>{{ user.name }}</td>
-                    <td>{{ user.role }}</td>
-                    <td>{{ user.phone }}</td>
-                    <td>{{ user.license_plate }}</td>
+                  <!-- 1. 加载中 -->
+                  <template v-if="isLoading">
+                    <tr class="loading-state">
+                      <td colspan="6">
+                        <div class="spinner"></div> 数据加载中...
+                      </td>
+                    </tr>
+                  </template>
+
+                  <!-- 2. 无数据 -->
+                  <template v-else-if="!filteredUsers.length">
+                    <tr class="empty-state">
+                      <td colspan="6">未找到匹配用户</td>
+                    </tr>
+                  </template>
+
+                  <!-- 3. 正常渲染 -->
+                  <template v-else>
+                    <tr
+                      v-for="user in filteredUsers"
+                      :key="user.user_id"
+                    >
+                    <td v-html="highlightText(user.user_id.toString(), searchText)" />
+                    <td v-html="highlightText(user.name || '', searchText)" />
+                    <td v-html="highlightText(user.role || '', searchText)" />
+                    <td v-html="highlightText(user.phone || '', searchText) || '未填写'" />
+                    <td v-html="highlightText(user.license_plate || '', searchText) || '无'" />
+                    <td v-html="highlightText(user.school_id || '', searchText) || '无'" />
+
                     <td>
-                      <button @click="handleEdit(user)" class="edit">
-                        编辑
-                      </button>
-                      <button @click="handleDelete(user.id)" class="danger">
-                        删除
-                      </button>
-                    </td>
-                  </tr>
+                        <button
+                          class="edit"
+                          @click.stop="openEditModal(user)"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          class="danger"
+                          @click.stop="deleteUser(user.user_id)"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
+
               </table>
             </div>
-            <div class="role-management">
-              <h3>角色分配</h3>
-              <p>角色分配功能区域</p>
+          </div>
+          <!-- 编辑用户信息的弹出层 -->
+          <div v-if="showEditModal" class="edit-modal">
+            <h3>编辑用户信息</h3>
+            <div class="form-grid">
+              <label>用户ID:</label>
+              <span>{{ editForm.user_id }}</span>
+              <label>用户名:</label>
+              <input v-model="editForm.name" type="text" placeholder="请输入用户名" />
+              <label>手机号:</label>
+              <input v-model="editForm.phone" type="text" placeholder="请输入手机号" />
+              <label>车牌号:</label>
+              <input v-model="editForm.license_plate" type="text" placeholder="请输入车牌号" />
             </div>
-            <div class="blacklist-management">
-              <h3>黑名单管理</h3>
-              <p>黑名单管理功能区域</p>
+            <div class="button-container">
+              <button class="primary" @click="submitUserEdit">保存</button>
+              <button class="secondary" @click="closeEditModal">取消</button>
             </div>
           </div>
         </div>
@@ -109,6 +145,10 @@
         <!-- 车辆管理 -->
         <div v-if="activePage === 'vehicleManagement'" class="section">
           <h2>电动车管理</h2>
+          <!-- 搜索区域：按车牌号搜索 -->
+          <div class="search-box">
+            <input type="text" v-model="searchQuery" placeholder="请输入车牌号搜索" />
+          </div>
           <div class="vehicle-management">
             <div class="vehicle-list">
               <h3 class="left-aligned">所有车辆信息列表</h3>
@@ -117,44 +157,46 @@
                   <tr>
                     <th>车牌号</th>
                     <th>车主</th>
+                    <th>品牌</th>
+                    <th>颜色</th>
                     <th>状态</th>
+                    <th>图片</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="vehicle in allVehicles" :key="vehicle.id">
-                    <td>{{ vehicle.plate_number }}</td>
-                    <td>{{ vehicle.owner_id }}</td>
+                  <tr v-for="vehicle in filteredVehicles" :key="vehicle.id">
+                    <td v-html="highlightText(vehicle.plate_number || '', searchQuery)"></td>
+                    <td v-html="highlightText(vehicle.owner_name || vehicle.owner_id || '', searchQuery)"></td>
+                    <td v-html="highlightText(vehicle.brand || '', searchQuery)"></td>
+                    <td v-html="highlightText(vehicle.color || '', searchQuery)"></td>
                     <td>{{ vehicle.status }}</td>
                     <td>
-                      <button @click="showEditForm(vehicle)" class="edit">
-                        编辑
-                      </button>
-                      <button @click="handleDelete(vehicle.id)" class="danger">
-                        删除
-                      </button>
+                      <img v-if="vehicle.image_url" :src="vehicle.image_url" alt="车辆图片" class="vehicle-image" />
+                    </td>
+                    <td>
+                      <button @click="showEditForm(vehicle)" class="edit">编辑</button>
+                      <button @click="handleDelete(vehicle.id)" class="danger">删除</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-
-            <!-- 编辑表单 -->
+            <!-- 编辑车辆状态的弹出层 -->
             <div v-if="editingVehicle" class="edit-form">
-              <h3>编辑车辆信息</h3>
+              <h3>编辑车辆状态</h3>
               <div class="form-grid">
                 <label>车牌号:</label>
-                <input v-model="editingVehicle.plate_number" type="text" />
-                <label>状态:</label>
+                <span>{{ editingVehicle.plate_number }}</span>
+                <label>当前状态:</label>
                 <select v-model="editingVehicle.status">
                   <option value="active">正常</option>
                   <option value="维修中">维修中</option>
                   <option value="报废">报废</option>
                 </select>
-                <!-- 其他字段... -->
               </div>
-              <button @click="submitEdit" class="primary">保存</button>
-              <button @click="cancelEdit" class="secondary">取消</button>
+              <button class="primary" @click="submitVehicleEdit">保存</button>
+              <button class="secondary" @click="cancelEdit">取消</button>
             </div>
 
             <div class="binding-audit">
@@ -168,18 +210,20 @@
           </div>
         </div>
 
-        <!-- 停车场管理 -->
+         <!-- 停车场管理 -->
         <div v-if="activePage === 'parkingManagement'" class="section">
-          <h2>停车场管理</h2>
+          <div v-if="activePage === 'parkingManagement'" class="section">
+          <h2>停车场充电区管理</h2>
+          <!-- 引入并使用 AdminParkingPage 组件 -->
+          <AdminParkingPage />
+          <h3>地图导航管理</h3>
+          <MapNavigation /> 
+        </div>
           <div class="parking-management">
-            <div class="parking-configuration">
-              <h3>车位配置</h3>
-              <p>车位配置功能区域</p>
-            </div>
-            <div class="parking-violation">
+            <!-- <div class="parking-violation">
               <h3>违规停车处理</h3>
               <p>违规处理区域</p>
-            </div>
+            </div> -->
             <div class="export-data">
               <h3>数据导出</h3>
               <button>导出为Excel</button>
@@ -238,6 +282,7 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -246,58 +291,187 @@
 <script>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useAuthStore } from "../store/auth"; // 验证管理员权限
+// 只导入一次 useAuthStore，因为认证和用户管理都放在一个文件中
+import { useAuthStore } from "../store/auth";
 import { useVehicleStore } from "../store/vehicleService";
+import AdminParkingPage from '@/components/AdminParkingPage.vue';
+import MapNavigation from "@/components/MapNavigation.vue";
+
 
 export default {
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();
     const vehicleStore = useVehicleStore();
-    const allVehicles = computed(() => vehicleStore.allVehicles);
-    const editingVehicle = ref(null); // 当前编辑的车辆对象
-    const userStore = useAuthStore();
-    const selectedRole = ref(""); // 筛选角色
 
-    // 过滤用户列表
+    // 使用 authStore 来管理用户数据（包括所有用户列表）
+    const searchText = ref("");
+    const showEditModal = ref(false);
+    const editForm = ref({
+      user_id: "",
+      name: "",
+      phone: "",
+      license_plate: ""
+    });
+
+    const isLoading = ref(true);
+
+    onMounted(async () => {
+      // 权限校验
+      if (authStore.user?.role !== 'admin') {
+        alert('无权限访问');
+        return router.replace('/login');
+      }
+
+      // 初始化 & 加载
+      authStore.allUsers = [];     // 确保不是 undefined
+      isLoading.value = true;
+      try {
+        await authStore.fetchAllUsers();
+      } catch (e) {
+        console.error(e);
+        alert('数据加载失败');
+      } finally {
+        isLoading.value = false;
+      }
+    });
+
+
+
+    const highlightText = (text, keyword) => {
+      if (!keyword) return text;
+      const regex = new RegExp(`(${keyword})`, 'gi');
+      return text.replace(regex, '<span class="highlightText">$1</span>');
+    };
+    
     const filteredUsers = computed(() => {
-      if (!selectedRole.value) return userStore.allUsers;
-      return userStore.allUsers.filter(
-        (user) => user.role === selectedRole.value
+      const list = authStore.allUsers || [];
+      const q = searchText.value.trim().toLowerCase();
+
+      return list
+        // 1) 严格剔除掉 null/undefined、非对象，或缺少 user_id 的条目
+        .filter(u => u && typeof u === 'object' && u.user_id != null)
+        // 2) 再对合法项做搜索过滤
+        .filter(u => {
+          if (!q) return true;
+          const haystack = [
+            u.user_id.toString().toLowerCase(),
+            u.name?.toLowerCase()     || '',
+            u.phone?.toLowerCase()    || '',
+            u.license_plate?.toLowerCase() || '',
+            u.school_id?.toLowerCase() || ''
+          ].join('|');
+          return haystack.includes(q);
+        });
+        
+    });
+
+
+
+
+
+    // 用户编辑：打开编辑模态框
+    const openEditModal = (user) => {
+      console.log('openEditModal 被调用，user:', user)
+      // 添加对象有效性验证
+      if (!user || typeof user !== 'object' || !user.user_id) {
+        console.error('无效的用户对象', user);
+        alert('用户数据异常，请刷新后重试');
+        return;
+      }
+
+      // 使用可选链和默认值
+      editForm.value = {
+        user_id: user?.user_id ?? '',
+        name: user?.name ?? '',
+        phone: user?.phone ?? '',
+        license_plate: user?.license_plate ?? ''
+      };
+      
+      showEditModal.value = true;
+    };
+
+    const closeEditModal = () => {
+      showEditModal.value = false;
+    };
+
+    // 提交用户编辑（重命名为 submitUserEdit）
+    const submitUserEdit = async () => {
+      try {
+        await authStore.updateUser({
+          user_id:editForm.value.user_id,
+          name: editForm.value.name,
+          phone: editForm.value.phone,
+          license_plate: editForm.value.license_plate
+        });
+        alert("更新成功！");
+        showEditModal.value = false;
+        await authStore.fetchAllUsers();
+      } catch (error) {
+        console.error("编辑失败:", error);
+        alert("编辑失败，请重试！");
+      }
+    };
+
+    // 删除用户
+    const deleteUser = async (userId) => {
+      if (!userId) {
+        console.error('删除操作接收到无效用户ID');
+        return;
+      }
+
+      if (confirm(`确认删除用户 ${userId} 吗？此操作不可撤销！`)) {
+        try {
+          await authStore.deleteUser(userId);
+          await authStore.fetchAllUsers();
+          alert('删除成功');
+        } catch (error) {
+          console.error('删除失败:', error);
+          alert(`删除失败: ${error.response?.data?.message || error.message}`);
+        }
+      }
+    };
+
+    // 以下车辆管理部分保持不变
+    const allVehicles = computed(() => vehicleStore.allVehicles);
+    const editingVehicle = ref(null);
+    const searchQuery = ref("");
+    const filteredVehicles = computed(() => {
+      if (!searchQuery.value) return allVehicles.value;
+      return allVehicles.value.filter(vehicle =>
+        vehicle.plate_number?.toLowerCase().includes(searchQuery.value.toLowerCase())
       );
     });
 
     onMounted(async () => {
       try {
-        // 权限验证：确保是管理员
         if (authStore.user?.role !== "admin") {
           alert("无权限访问该功能");
           return;
         }
-
-        await userStore.fetchAllUsers(); // ✅ 调用新接口
+        await vehicleStore.fetchAllVehicles();
+        
       } catch (error) {
-        console.error("加载用户列表失败:", error);
-        alert("加载失败，请重试");
+        console.error("加载车辆列表失败:", error);
+        alert("加载车辆列表失败，请重试");
       }
     });
 
-    // 编辑功能
     const showEditForm = (vehicle) => {
-      editingVehicle.value = { ...vehicle }; // 深拷贝避免直接修改原始数据
+      editingVehicle.value = { ...vehicle };
     };
 
-    const submitEdit = async () => {
+    const submitVehicleEdit = async () => {
       try {
         await vehicleStore.adminupdateVehicle(
           editingVehicle.value.id,
           editingVehicle.value
         );
         editingVehicle.value = null;
-        alert("编辑成功！");
+        alert("车辆编辑成功！");
       } catch (error) {
-        console.error("编辑失败:", error);
-        alert("编辑失败，请检查输入信息！");
+        console.error("车辆编辑失败:", error);
+        alert("车辆编辑失败，请检查输入信息！");
       }
     };
 
@@ -305,7 +479,6 @@ export default {
       editingVehicle.value = null;
     };
 
-    // 删除功能
     const handleDelete = async (vehicleId) => {
       if (confirm("确定删除该车辆？")) {
         try {
@@ -318,26 +491,13 @@ export default {
       }
     };
 
-    onMounted(async () => {
-      try {
-        // 权限二次验证（确保是管理员）
-        if (authStore.user?.role !== "admin") {
-          alert("无权限访问该功能");
-          return;
-        }
-        await vehicleStore.fetchAllVehicles(); // 调用新方法获取数据
-      } catch (error) {
-        console.error("加载车辆列表失败:", error);
-        alert("加载车辆列表失败，请重试");
-      }
-    });
-
-    // 主动修改默认页面为系统仪表盘
     const activePage = ref("systemDashboard");
 
     const logout = () => {
-      authStore.logout();
-      router.replace("/login");
+      if (confirm("确定要退出登录吗？")) {
+        authStore.logout();
+        router.replace("/login");
+      }
     };
 
     const navigate = (page) => {
@@ -349,20 +509,34 @@ export default {
       logout,
       navigate,
       allVehicles,
-      selectedRole,
       filteredUsers,
+      filteredVehicles,
       editingVehicle,
       showEditForm,
-      submitEdit,
+      submitUserEdit,
+      submitVehicleEdit,
+      openEditModal,
+      closeEditModal,
+      showEditModal,
+      deleteUser,
       cancelEdit,
+      searchText,
+      searchQuery,
+      AdminParkingPage,
       handleDelete,
+      editForm,
+      isLoading,
+      highlightText,
+      MapNavigation,
     };
   },
 };
 </script>
 
 <style scoped>
-/* 完全保留原有样式，仅新增结构所需的样式 */
+/* 请根据需要保留或调整样式 */
+
+/* 全局样式 */
 .dashboard-widgets {
   display: flex;
   gap: 20px;
@@ -396,7 +570,7 @@ export default {
 }
 
 .user-table tr:hover {
-  background-color: #f1f3f5;
+  background-color: #f9f9f9;
 }
 
 .user-table td:last-child button.danger {
@@ -409,6 +583,7 @@ export default {
   margin-left: 10px;
 }
 
+
 .vehicle-management {
   display: flex;
   flex-direction: column;
@@ -416,7 +591,6 @@ export default {
   gap: 20px;
 }
 
-/* 车辆表格优化 */
 .vehicle-table {
   width: 100%;
   border-collapse: collapse;
@@ -467,7 +641,23 @@ export default {
   gap: 20px;
 }
 
-/* 保留原有按钮样式 */
+.search-box {
+  margin-bottom: 15px;
+}
+
+.search-box input {
+  width: 300px;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.vehicle-image {
+  max-width: 100px;
+  max-height: 70px;
+  object-fit: contain;
+}
+
 button {
   background-color: #ff4d4d;
   color: white;
@@ -481,7 +671,6 @@ button:hover {
   background-color: #ff1a1a;
 }
 
-/* 保持原有布局样式 */
 .admin-dashboard {
   display: flex;
   flex-direction: column;
@@ -511,13 +700,13 @@ button:hover {
 }
 
 .sidebar li {
-  padding: 12px 16px; /* 增大内边距 */
+  padding: 12px 16px;
   font-size: 16px;
   border-radius: 4px;
 }
 
 .sidebar li:hover {
-  background-color: #343a40; /* 更柔和的悬浮色 */
+  background-color: #343a40;
   color: white;
 }
 
@@ -528,7 +717,6 @@ button:hover {
   overflow-y: auto;
 }
 
-/* 卡片式容器 */
 .section {
   background: white;
   border-radius: 8px;
@@ -546,7 +734,6 @@ button:hover {
   font-size: 16px;
 }
 
-/* 标题样式 */
 h2 {
   color: #212529;
   font-weight: 600;
@@ -582,4 +769,61 @@ h2 {
   border: 1px solid #ced4da;
   border-radius: 4px;
 }
+
+/* 加载状态样式 */
+.loading-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #666;
+}
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(0,0,0,0.1);
+  border-radius: 50%;
+  border-top-color: #007bff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  padding: 20px 0;
+  color: #999;
+  text-align: center;
+}
+
+/* 按钮点击保护 */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 用户管理的编辑弹窗 */
+.edit-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  width: 500px;
+  z-index: 1000;
+}
+
+:deep(.highlightText) {
+  background-color: yellow;
+  font-weight: bold;
+  color: #d12a2a;
+}
+
+
+
 </style>

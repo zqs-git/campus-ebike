@@ -3,6 +3,10 @@ const path = require('path');
 module.exports = {
   transpileDependencies: true,  // 保留这个配置
 
+  devServer: {
+    hot: false, // 禁用热重载
+  },
+
   configureWebpack: {
     resolve: {
       // 配置 Webpack 查找模块的路径

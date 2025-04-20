@@ -1,0 +1,23 @@
+// api/adminParking.js
+import axios from 'axios';
+
+const apiUrl = '/api/parking';
+
+// 获取所有停车场信息
+export const getAllParkingLots = () => {
+  return axios.get(`${apiUrl}/parking_lots`);
+};
+
+// 创建停车场
+export const createParkingLot = (locationId, name, capacity) => {
+  return axios.post(`${apiUrl}/add_parking_lot`, {
+    location_id: locationId,
+    name,
+    capacity
+  });
+};
+
+// 删除停车场
+export const deleteParkingLot = (lotId) => {
+  return axios.delete(`${apiUrl}/delete_parking_lot/${lotId}`);
+};

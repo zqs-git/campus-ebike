@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getMyVehicle, bindVehicle, unbindVehicle, updateVehicle, getAllVehicles,deleteVehicle,admin_updateVehicle  } from '../api/vehicleApi';
+import { getMyVehicle, bindVehicle, unbindVehicle, updateVehicle, getAllVehicles, deleteVehicle, admin_updateVehicle } from '../api/vehicleApi';
 
 export const useVehicleStore = defineStore('vehicle', {
   state: () => ({
@@ -9,8 +9,6 @@ export const useVehicleStore = defineStore('vehicle', {
   }),
 
   actions: {
-
-    
     async fetchMyVehicle() {
       try {
         const data = await getMyVehicle();
@@ -52,7 +50,10 @@ export const useVehicleStore = defineStore('vehicle', {
     },
 
     async bindVehicleHandler(vehicleData) {
-      console.log("🚀 发送的数据:", vehicleData); // 添加日志，检查数据是否完整
+      console.log("🚀 发送的数据:", vehicleData);
+      for (let [key, value] of vehicleData.entries()) {
+        console.log(`${key}:`, value);
+      }
       try {
         const response = await bindVehicle(vehicleData);
         console.log("绑定返回数据:", response);
@@ -61,6 +62,7 @@ export const useVehicleStore = defineStore('vehicle', {
         }
       } catch (error) {
         console.error('绑定电动车失败', error);
+        throw error;
       }
     },
 
@@ -75,8 +77,11 @@ export const useVehicleStore = defineStore('vehicle', {
       }
     },
 
+    // 修改后的更新车辆信息方法：在 FormData 中追加 vehicle_id 字段
     async updateVehicleHandler(vehicleId, updates) {
       try {
+        // 将 vehicle_id 追加到 FormData 中，确保后端能收到该字段
+        updates.append('vehicle_id', vehicleId);
         const response = await updateVehicle(vehicleId, updates);
         if (response.code === 200 && response.vehicle) {
           this.vehicle = response.vehicle;  // 更新电动车信息
@@ -110,7 +115,5 @@ export const useVehicleStore = defineStore('vehicle', {
         console.error("删除车辆失败:", error);
       }
     },
-
-
   },
 });

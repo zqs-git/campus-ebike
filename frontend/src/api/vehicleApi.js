@@ -6,14 +6,17 @@ const apiClient = axios.create({
   timeout: 10000,           // 请求超时
 });
 
-
 // 绑定电动车
 export const bindVehicle = async (vehicleData) => {
-  const token = localStorage.getItem('token');  // 获取存储的 token
+  const token = localStorage.getItem('token');  // 获取 token
   if (!token) throw new Error('未找到有效 token');
+
   try {
     const response = await apiClient.post('/bind', vehicleData, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // 注意不要设置 'Content-Type'，让浏览器自动设置 multipart/form-data
+      },
     });
     return response.data;
   } catch (error) {
@@ -37,7 +40,6 @@ export const getMyVehicle = async () => {
   }
 };
 
-
 // 新增获取所有车辆的方法（管理员接口）
 export const getAllVehicles = async () => {
   const token = localStorage.getItem('token'); // 获取存储的 token
@@ -52,7 +54,6 @@ export const getAllVehicles = async () => {
     throw error;
   }
 };
-
 
 // 解绑电动车
 export const unbindVehicle = async (vehicleId) => {
@@ -74,7 +75,8 @@ export const updateVehicle = async (vehicleId, updates) => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('未找到有效 token');
   try {
-    const response = await apiClient.put('/update', { vehicle_id: vehicleId, ...updates }, {
+    // updates 是一个 FormData 对象，已在 store 中添加了 vehicle_id
+    const response = await apiClient.put('/update', updates, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;

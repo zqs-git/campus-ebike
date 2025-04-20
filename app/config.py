@@ -61,10 +61,18 @@ class Config:
     # --------------------------
     
     # 文件上传保存路径（生产环境应使用云存储）
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+    UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 限制文件大小为 16 MB
+
+    # 阿里云 OSS 配置
+    OSS_ACCESS_KEY_ID = os.getenv("OSS_ACCESS_KEY_ID")
+    OSS_ACCESS_KEY_SECRET = os.getenv("OSS_ACCESS_KEY_SECRET")
+    OSS_ENDPOINT = os.getenv("OSS_ENDPOINT")
+    OSS_BUCKET_NAME = os.getenv("OSS_BUCKET_NAME")
+    OSS_IMAGE_FOLDER = os.getenv("OSS_IMAGE_FOLDER", "electric-vehicles/")
 
 
-# config.py
+
 import sqlalchemy
 
 class TestingConfig(Config):

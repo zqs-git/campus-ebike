@@ -120,7 +120,7 @@ class User(db.Model):
             return self.visitor_pass.license_plate if self.visitor_pass else None
         else:
             # 学生/教职工通过关联车辆获取车牌号
-            return self.vehicles.first().plate_number if self.vehicles else None
+            return self.vehicles.first().plate_number if self.vehicles.first() else None
         
     @license_plate.setter
     def license_plate(self, plate):
@@ -163,10 +163,6 @@ class User(db.Model):
         """调试表示方法"""
         return f'<User {self.school_id or self.phone}>'
     
-    def update_login_time(self):
-        """更新最后登录时间"""
-        from datetime import datetime
-        self.last_login = datetime.utcnow()
 
 
 #访客通行证模型
