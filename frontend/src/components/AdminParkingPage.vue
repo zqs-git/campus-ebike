@@ -24,6 +24,8 @@
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="name" label="名称" />
             <el-table-column prop="location" label="地点" />
+
+
             <!-- <el-table-column prop="capacity" label="总车位" width="100" /> -->
             <!-- <el-table-column prop="occupied" label="已占用" width="100" /> -->
             <el-table-column label="操作" width="200">
@@ -36,10 +38,11 @@
         </div>
       </el-tab-pane>
       
-      <el-tab-pane label="充电桩管理">
-        <h2>功能待开发</h2>
+      <el-tab-pane label="充电桩管理" name="charging">
+        <ChargingAdmin/>
       </el-tab-pane>
-      <el-tab-pane label="违停管理">
+
+      <el-tab-pane label="违停管理" name="violations">
         <h2>功能待开发</h2>
       </el-tab-pane>
 
@@ -152,24 +155,29 @@
       width="500px"
       :before-close="handleLotDialogClose"
     >
-      <el-form :model="lotForm" label-width="100px">
-        <el-form-item label="名称">
-          <el-input v-model="lotForm.name" placeholder="请输入停车场名称" />
-        </el-form-item>
-        <el-form-item label="容量">
-          <el-input-number v-model="lotForm.capacity" :min="1" />
-        </el-form-item>
-        <el-form-item label="地点">
-          <el-select v-model="lotForm.location_id" placeholder="请选择地点">
-            <el-option
-              v-for="loc in locationStore.locations"
-              :key="loc.id"
-              :label="loc.name"
-              :value="loc.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-form :model="lotForm" label-width="100px">
+
+      <el-form-item label="地点">
+        <el-select v-model="lotForm.location_id" placeholder="请选择地点" @change="autoFillLotName">
+          <el-option
+            v-for="loc in locationStore.locations"
+            :key="loc.id"
+            :label="loc.name"
+            :value="loc.id"
+          />
+        </el-select>
+      </el-form-item>
+
+
+      <el-form-item label="名称">
+        <el-input v-model="lotForm.name" placeholder="请输入停车场名称" />
+      </el-form-item>
+
+      <el-form-item label="容量">
+        <el-input-number v-model="lotForm.capacity" :min="1" />
+      </el-form-item>
+    </el-form>
+
       <template #footer>
         <el-button @click="handleLotDialogClose">取消</el-button>
         <el-button type="primary" @click="submitLotForm">确定</el-button>
@@ -216,13 +224,30 @@
 
 <script setup>
 import { ref, onMounted,} from "vue";
-import { ElMessage } from "element-plus";
+import {
+  ElMessage,
+  ElTabs,
+  ElTabPane,
+  ElButton,
+  ElTable,
+  ElTableColumn,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElInputNumber,
+  ElSelect,
+  ElOption,
+  ElPagination
+} from 'element-plus'
 import { useParkingStore } from "@/store/parking";
 import { useLocationStore } from "@/store/location";
+import ChargingAdmin from "@/components/ChargingAdmin.vue";
+console.log('ChargingAdmin =', ChargingAdmin)
 
-// 模块切换
 const activeTab = ref("lots");
 const tableKey = ref(0);
+
 
 
 // 使用停车场相关 Store（直接使用对象，模板中访问其属性）
@@ -309,6 +334,15 @@ const handleDeleteLot = async (id) => {
     ElMessage.error(error.message || "删除失败");
   }
 };
+
+// 自动填充停车场名称
+const autoFillLotName = () => {
+  const selectedLocation = locationStore.locations.find(loc => loc.id === lotForm.value.location_id);
+  if (selectedLocation) {
+    lotForm.value.name = selectedLocation.name; // 根据选中的地点填充停车场名称
+  }
+};
+
 
 // ---------- 停车操作 ---------- //
 // const parkForm = ref({
@@ -433,6 +467,9 @@ const handleDeleteLocation = async (id) => {
     ElMessage.error(error.message || "删除失败");
   }
 };
+
+
+
 </script>
 
 <style scoped>

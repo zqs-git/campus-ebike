@@ -122,10 +122,41 @@
                 <label>车牌号:</label>
                 <div class="license-input" style="display: flex; gap: 10px; align-items: center;">
                   <select v-model="updateVehicleData.province">
+                    <option value="川">川</option>
+                    <option value="粤">粤</option>
                     <option value="京">京</option>
                     <option value="津">津</option>
                     <option value="沪">沪</option>
                     <option value="渝">渝</option>
+                    <option value="鲁">鲁</option>
+                    <option value="苏">苏</option>
+                    <option value="浙">浙</option>
+                    <option value="皖">皖</option>
+                    <option value="赣">赣</option>
+                    <option value="鄂">鄂</option>
+                    <option value="湘">湘</option>
+                    <option value="豫">豫</option>
+                    <option value="晋">晋</option>
+                    <option value="陕">陕</option>
+                    <option value="冀">冀</option>
+                    <option value="辽">辽</option>
+                    <option value="吉">吉</option>
+                    <option value="黑">黑</option>
+                    <option value="蒙">蒙</option>
+                    <option value="宁">宁</option>
+                    <option value="青">青</option>
+                    <option value="新">新</option>
+                    <option value="藏">藏</option>
+                    <option value="桂">桂</option>
+                    <option value="琼">琼</option>
+                    <option value="港">港</option>
+                    <option value="澳">澳</option>
+                    <option value="台">台</option>
+                    <option value="甘">甘</option>
+                    <option value="贵">贵</option>
+                    <option value="云">云</option>
+                    <option value="闽">闽</option>
+                    <option value="陕">陕</option>
                     <!-- 根据需要添加其他省份 -->
                   </select>
                   <select v-model="updateVehicleData.cityCode">
@@ -147,12 +178,17 @@
                   placeholder="请选择或输入品牌"
                 />
                 <datalist id="brandOptions">
+                  <option value="自定义"></option>
                   <option value="雅迪"></option>
                   <option value="爱码"></option>
-                  <option value="其他"></option>
+                  <option value="小刀"></option>
+                  <option value="台铃"></option>
+                  <option value="绿源"></option>
+                  <option value="比亚迪"></option>
+                  <option value="小牛"></option>
                 </datalist>
                 <!-- 如选择其他则显示自定义输入框 -->
-                <div v-if="updateVehicleData.brand === '其他'" style="grid-column: span 2;">
+                <div v-if="updateVehicleData.brand === '自定义'" style="grid-column: span 2;">
                   <input
                     v-model="updateVehicleData.customBrand"
                     type="text"
@@ -161,11 +197,27 @@
                 </div>
                 <!-- 颜色输入 -->
                 <label>颜色:</label>
-                <input
-                  v-model="updateVehicleData.color"
-                  type="text"
-                  placeholder="请输入颜色"
-                />
+                <select v-model="vehicleData.color">
+                  <option value="">请选择颜色</option>
+                  <option value="黑色">黑色</option>
+                  <option value="白色">白色</option>
+                  <option value="灰色">灰色</option>
+                  <option value="红色">红色</option>
+                  <option value="黄色">黄色</option>
+                  <option value="绿色">绿色</option>
+                  <option value="蓝色">蓝色</option>
+                  <option value="其他">其他</option>
+                </select>
+
+                <!-- 如果选择"其他"则显示自定义颜色输入框 -->
+                <div v-if="vehicleData.color === '其他'" style="grid-column: span 2;">
+                  <input
+                    v-model="vehicleData.customColor"
+                    type="text"
+                    placeholder="请输入自定义颜色"
+                  />
+                </div>
+
                 <!-- 上传图片 -->
                 <label>上传车辆图片:</label>
                 <input type="file" @change="handleUpdateImageUpload" accept="image/*" />
@@ -200,10 +252,41 @@
             <label>车牌号:</label>
             <div class="license-input" style="display: flex; gap: 10px; align-items: center;">
               <select v-model="vehicleData.province">
+                <option value="川">川</option>
+                <option value="粤">粤</option>
                 <option value="京">京</option>
                 <option value="津">津</option>
                 <option value="沪">沪</option>
                 <option value="渝">渝</option>
+                <option value="鲁">鲁</option>
+                <option value="苏">苏</option>
+                <option value="浙">浙</option>
+                <option value="皖">皖</option>
+                <option value="赣">赣</option>
+                <option value="鄂">鄂</option>
+                <option value="湘">湘</option>
+                <option value="豫">豫</option>
+                <option value="晋">晋</option>
+                <option value="陕">陕</option>
+                <option value="冀">冀</option>
+                <option value="辽">辽</option>
+                <option value="吉">吉</option>
+                <option value="黑">黑</option>
+                <option value="蒙">蒙</option>
+                <option value="宁">宁</option>
+                <option value="青">青</option>
+                <option value="新">新</option>
+                <option value="藏">藏</option>
+                <option value="桂">桂</option>
+                <option value="琼">琼</option>
+                <option value="港">港</option>
+                <option value="澳">澳</option>
+                <option value="台">台</option>
+                <option value="甘">甘</option>
+                <option value="贵">贵</option>
+                <option value="云">云</option>
+                <option value="闽">闽</option>
+                <option value="陕">陕</option>
                 <!-- 根据需要添加其他省份 -->
               </select>
               <select v-model="vehicleData.cityCode">
@@ -225,11 +308,17 @@
               placeholder="请选择或输入品牌"
             />
             <datalist id="brandOptions">
+              <option value="自定义"></option>
               <option value="雅迪"></option>
               <option value="爱码"></option>
-              <option value="其他"></option>
+              <option value="小刀"></option>
+              <option value="台铃"></option>
+              <option value="绿源"></option>
+              <option value="比亚迪"></option>
+              <option value="小牛"></option>
+
             </datalist>
-            <div v-if="vehicleData.brand === '其他'" style="grid-column: span 2;">
+            <div v-if="vehicleData.brand === '自定义'" style="grid-column: span 2;">
               <input
                 v-model="vehicleData.customBrand"
                 type="text"
@@ -238,11 +327,27 @@
             </div>
             <!-- 颜色 -->
             <label>颜色:</label>
-            <input
-              v-model="vehicleData.color"
-              type="text"
-              placeholder="请输入颜色（可选）"
-            />
+            <select v-model="vehicleData.color">
+              <option value="">请选择颜色</option>
+              <option value="黑色">黑色</option>
+              <option value="白色">白色</option>
+              <option value="灰色">灰色</option>
+              <option value="红色">红色</option>
+              <option value="黄色">黄色</option>
+              <option value="绿色">绿色</option>
+              <option value="蓝色">蓝色</option>
+              <option value="其他">其他</option>
+            </select>
+
+            <!-- 如果选择"其他"则显示自定义颜色输入框 -->
+            <div v-if="vehicleData.color === '其他'" style="grid-column: span 2;">
+              <input
+                v-model="vehicleData.customColor"
+                type="text"
+                placeholder="请输入自定义颜色"
+              />
+            </div>
+
             <!-- 上传图片 -->
             <label>上传车辆图片:</label>
             <input type="file" @change="handleImageUpload" accept="image/*" />
@@ -311,7 +416,7 @@
 
         <!-- 充电桩管理 -->
         <div v-if="activePage === 'chargreManagement' && isStudentOrStaff" class="section">
-          <h2>查看充电桩</h2>
+          <ChargingPage />
           <p>展示充电桩实时状态及充电预约</p>
         </div>
 
@@ -339,6 +444,7 @@ import { useVehicleStore } from "../store/vehicleService";
 import MapNavigation from "@/components/MapNavigation.vue";
 import StudentParkingPage from '@/components/ParkingPage.vue';
 import { ElMessage } from 'element-plus';
+import ChargingPage from "@/components/ChargingPage.vue";
 
 export default {
   setup() {
@@ -365,7 +471,7 @@ export default {
 
     // 绑定车辆的数据
     const vehicleData = ref({
-      province: "京",
+      province: "川",
       cityCode: "A",
       plate_number_suffix: "",
       brand: "",
@@ -377,7 +483,7 @@ export default {
 
     // 更新车辆的数据（更新逻辑与绑定类似）
     const updateVehicleData = ref({
-      province: "京",
+      province: "川",
       cityCode: "A",
       plate_number_suffix: "",
       brand: "",
@@ -412,44 +518,47 @@ export default {
 
     // 绑定车辆提交逻辑
     const submitBindVehicle = async () => {
-      // 合并车牌号
-      const fullPlateNumber =
-        vehicleData.value.province +
-        vehicleData.value.cityCode +
-        vehicleData.value.plate_number_suffix;
-      // 判断品牌是否为“其他”
-      const finalBrand =
-        vehicleData.value.brand === "其他"
-          ? vehicleData.value.customBrand
-          : vehicleData.value.brand;
+    const fullPlateNumber =
+      vehicleData.value.province +
+      vehicleData.value.cityCode +
+      vehicleData.value.plate_number_suffix;
+    
+    const finalBrand =
+      vehicleData.value.brand === "其他"
+        ? vehicleData.value.customBrand
+        : vehicleData.value.brand;
 
-      const formData = new FormData();
-      formData.append("plate_number", fullPlateNumber);
-      formData.append("brand", finalBrand);
-      formData.append("color", vehicleData.value.color || "");
-      formData.append("status", "active");
-      if (vehicleData.value.image) {
-        formData.append("image", vehicleData.value.image);
-      }
+    const finalColor = vehicleData.value.color === "其他" ? vehicleData.value.customColor : vehicleData.value.color;
 
-      try {
-        const res = await vehicleStore.bindVehicleHandler(formData);
-        console.log("绑定成功:", res);
-        showBindForm.value = false;
-        await vehicleStore.fetchMyVehicle();
-        ElMessage.success("电动车绑定成功");
-      } catch (error) {
-        console.error("绑定失败", error.response?.data || error);
-        ElMessage.error(error.response?.data?.msg || "绑定失败，请重试");
-      }
-    };
+    const formData = new FormData();
+    formData.append("plate_number", fullPlateNumber);
+    formData.append("brand", finalBrand);
+    formData.append("color", finalColor || "");
+    formData.append("status", "active");
+    
+    if (vehicleData.value.image) {
+      formData.append("image", vehicleData.value.image);
+    }
+
+    try {
+      const res = await vehicleStore.bindVehicleHandler(formData);
+      console.log("绑定成功:", res);
+      showBindForm.value = false;
+      await vehicleStore.fetchMyVehicle();
+      ElMessage.success("电动车绑定成功");
+    } catch (error) {
+      console.error("绑定失败", error.response?.data || error);
+      ElMessage.error(error.response?.data?.msg || "绑定失败，请重试");
+    }
+  };
+
 
     // 初始化更新表单，将现有车辆数据拆分后赋值到 updateVehicleData
     const initializeUpdateForm = () => {
       if (vehicleStore.vehicle && Object.keys(vehicleStore.vehicle).length > 0) {
         // 假设后端存储的车牌号格式是“京A12345”
         const plate = vehicleStore.vehicle.plate_number || "";
-        updateVehicleData.value.province = plate.charAt(0) || "京";
+        updateVehicleData.value.province = plate.charAt(0) || "川";
         updateVehicleData.value.cityCode = plate.charAt(1) || "A";
         updateVehicleData.value.plate_number_suffix = plate.slice(2);
         updateVehicleData.value.brand = vehicleStore.vehicle.brand || "";
@@ -601,6 +710,7 @@ export default {
       cityCodes,
       MapNavigation,
       StudentParkingPage,
+      ChargingPage,
     };
   },
 };

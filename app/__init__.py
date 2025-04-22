@@ -80,6 +80,7 @@ def create_app(config_name='development'):
     from app.models.vehicles import ElectricVehicle
     from app.models.location import CampusLocation
     from app.models.parking import ParkingLot, ParkingSpace, ParkingRecord
+    from app.models.charging import ChargingPile, ChargingSession,ChargingSessionStatus, ChargingPileStatus
 
     # --------------------------
     # JWT 回调配置
@@ -113,6 +114,7 @@ def register_blueprints(app):
     from .routes.parking import parking_bp
     from .routes.location import location_bp
     from .routes.location import locations_bp
+    from .routes.charging import charging_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -120,6 +122,7 @@ def register_blueprints(app):
     app.register_blueprint(parking_bp)
     app.register_blueprint(location_bp)
     app.register_blueprint(locations_bp)
+    app.register_blueprint(charging_bp)
     
     # 测试专用蓝图（仅开发/测试环境加载）
     if app.config.get('DEBUG') or app.config.get('TESTING'):
