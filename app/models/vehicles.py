@@ -35,6 +35,15 @@ class ElectricVehicle(db.Model):
     # # 建立关联
     # owner = db.relationship('User', backref='vehicles')
 
+    # owner = db.relationship('User', backref='vehicles')
+
+    # 车辆与充电会话的关系
+    sessions = db.relationship(
+        'ChargingSession',
+        back_populates='vehicle',
+        cascade='all, delete-orphan'
+    )
+
     def __repr__(self):
         return f"<ElectricVehicle {self.plate_number} owned by {self.owner_id}>"
     

@@ -1,62 +1,127 @@
 from app import db
 from datetime import datetime
 import enum
-
-# 充电桩状态
+# ---------------------
+# 枚举定义
+# ---------------------
 class ChargingPileStatus(enum.Enum):
-    available = "available"  # 空闲
-    reserved = "reserved"    # 已预约
-    charging = "charging"    # 正在充电
-    finished = "finished"    # 充电完成
-    offline = "offline"      # 离线
+    available = "available"   # 空闲
+    reserved  = "reserved"    # 已预约
+    charging  = "charging"    # 正在充电
+    finished  = "finished"    # 充电完成
+    offline   = "offline"     # 离线
 
-# 充电会话状态
 class ChargingSessionStatus(enum.Enum):
-    reserved = "reserved"  # 已预约，待开始
-    ongoing = "ongoing"    # 正在充电
-    completed = "completed" # 已完成
-    cancelled = "cancelled" # 取消
+    reserved  = "reserved"   # 已预约，待开始
+    ongoing   = "ongoing"    # 正在充电
+    completed = "completed"  # 已完成
+    cancelled = "cancelled"  # 已取消
 
-# 充电桩表
+# ---------------------
+# 充电桩模型
+# ---------------------
 class ChargingPile(db.Model):
     __tablename__ = 'charging_piles'
-    
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    location_id = db.Column(db.Integer, db.ForeignKey('campus_locations.id'), nullable=False)  # 外键，关联地点表
-    name = db.Column(db.String(50), nullable=False)  # 充电桩名称
-    connector = db.Column(db.String(20), nullable=False)  # 充电接口类型（例如 "Type2"）
-    power_kw = db.Column(db.Float, nullable=False)  # 额定功率（单位：kW）
-    fee_rate = db.Column(db.Float, nullable=False)  # 每度电的费用（单位：元）
-    status = db.Column(db.Enum(ChargingPileStatus), default=ChargingPileStatus.available, nullable=False)  # 当前状态
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # 更新时间
-    
-    # 充电桩与地点的关系
-    location = db.relationship('CampusLocation', backref='charging_piles')
+    __table_args__ = (
+        db.UniqueConstraint('location_id', 'name', name='uix_location_pile_name'),
+    )
 
-    # 充电桩与充电会话的关系
-    sessions = db.relationship('ChargingSession', back_populates='pile', cascade='all, delete-orphan')
-    
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    location_id = db.Column(
+        db.Integer,
+        db.ForeignKey('campus_locations.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    name        = db.Column(db.String(50), nullable=False)
+    connector   = db.Column(db.String(20), nullable=False)
+    power_kw    = db.Column(db.Float, nullable=False)
+    fee_rate    = db.Column(db.Float, nullable=False)
+    status      = db.Column(
+        db.Enum(ChargingPileStatus),
+        default=ChargingPileStatus.available,
+        nullable=False,
+        index=True
+    )
+    updated_at  = db.Column(
+        db.DateTime(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    # 关系
+    location    = db.relationship('CampusLocation', backref=db.backref('charging_piles', cascade='all, delete-orphan'))
+    sessions    = db.relationship(
+        'ChargingSession',
+        back_populates='pile',
+        cascade='all, delete-orphan'
+    )
+
     def __repr__(self):
-        return f"<ChargingPile {self.name}, Location: {self.location.name}>"
+        return f"<ChargingPile id={self.id}, name={self.name}, status={self.status.value}>"
 
-# 充电会话表
+# ---------------------
+# 充电会话模型
+# ---------------------
 class ChargingSession(db.Model):
     __tablename__ = 'charging_sessions'
-    
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # 用户ID
-    pile_id = db.Column(db.Integer, db.ForeignKey('charging_piles.id'), nullable=False)  # 充电桩ID
-    start_time = db.Column(db.DateTime, nullable=True)  # 开始时间
-    end_time = db.Column(db.DateTime, nullable=True)  # 结束时间
-    status = db.Column(db.Enum(ChargingSessionStatus), default=ChargingSessionStatus.reserved, nullable=False)  # 充电会话状态
-    energy_kwh = db.Column(db.Float, nullable=True)  # 充电量（单位：kWh）
-    fee_amount = db.Column(db.Float, nullable=True)  # 费用（单位：元）
+    __table_args__ = (
+        db.UniqueConstraint('pile_id', 'slot_time', name='uix_pile_slot'),
+        db.Index('ix_session_user', 'user_id'),
+        db.Index('ix_session_status', 'status'),
+    )
 
-    # 充电会话与充电桩的关系
-    pile = db.relationship('ChargingPile', back_populates='sessions')
-    
-    # 充电会话与用户的关系
-    user = db.relationship('User')
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False
+    )
+    pile_id     = db.Column(
+        db.Integer,
+        db.ForeignKey('charging_piles.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    vehicle_id  = db.Column(
+        db.Integer,
+        db.ForeignKey('electric_vehicles.id', ondelete='CASCADE'),
+        nullable=False
+    )
+
+    # 预约时段和创建时间
+    slot_time   = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        index=True
+    )
+    created_at  = db.Column(
+        db.DateTime(timezone=True),
+        default=datetime.utcnow,
+        nullable=False,
+        index=True
+    )
+
+    # 开始/结束
+    start_time  = db.Column(db.DateTime(timezone=True), nullable=True)
+    end_time    = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    status      = db.Column(
+        db.Enum(ChargingSessionStatus),
+        default=ChargingSessionStatus.reserved,
+        nullable=False
+    )
+    energy_kwh  = db.Column(db.Float, nullable=True)
+    fee_amount  = db.Column(db.Float, nullable=True)
+
+    # 关系
+    pile        = db.relationship('ChargingPile', back_populates='sessions')
+    user        = db.relationship('User', backref=db.backref('charging_sessions', cascade='all, delete-orphan'))
+    vehicle     = db.relationship('ElectricVehicle', back_populates='sessions')
 
     def __repr__(self):
-        return f"<ChargingSession {self.id}, User: {self.user_id}, Pile: {self.pile_id}>"
+        return (
+            f"<ChargingSession id={self.id}, user={self.user_id}, "
+            f"pile={self.pile_id}, slot={self.slot_time.isoformat()}, status={self.status.value}>"
+        )
