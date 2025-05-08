@@ -115,6 +115,11 @@ class ChargingSession(db.Model):
     energy_kwh  = db.Column(db.Float, nullable=True)
     fee_amount  = db.Column(db.Float, nullable=True)
 
+    reserved_date       = db.Column(db.Date, nullable=True)
+    reserved_start_time = db.Column(db.Time, nullable=True)
+    reserved_end_time   = db.Column(db.Time, nullable=True)
+
+
     # 关系
     pile        = db.relationship('ChargingPile', back_populates='sessions')
     user        = db.relationship('User', backref=db.backref('charging_sessions', cascade='all, delete-orphan'))

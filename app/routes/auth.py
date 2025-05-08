@@ -267,7 +267,9 @@ def user_info():
             User.phone,
             User.role,
             User.school_id,
-            ElectricVehicle.plate_number.label('license_plate')
+            ElectricVehicle.plate_number.label('license_plate'),
+            User.score,
+
         ).join(
             ElectricVehicle, ElectricVehicle.owner_id == User.id, isouter=True
         ).filter(User.id == user_id).first()
@@ -284,7 +286,8 @@ def user_info():
                 "phone": user.phone,
                 "role": user.role,
                 "school_id": user.school_id,
-                "license_plate": user.license_plate
+                "license_plate": user.license_plate,
+                "score": user.score,
             }
         }), 200, {'Content-Type': 'application/json; charset=utf-8'}
     except Exception as e:
@@ -308,7 +311,8 @@ def get_all_users():
                 "phone": user.phone,
                 "role": user.role,
                 "school_id": user.school_id,
-                "license_plate": user.license_plate
+                "license_plate": user.license_plate,
+                "score": user.score,
             }
             for user in users
         ]

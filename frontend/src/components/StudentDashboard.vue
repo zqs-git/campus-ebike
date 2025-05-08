@@ -410,6 +410,7 @@
 
         <!-- 积分管理 -->
         <div v-if="activePage === 'scoreManagement' && isStudentOrStaff" class="section">
+           <StudentScorePage />
           <h2>积分管理</h2>
           <p>展示违规积分及积分扣除规则。</p>
         </div>
@@ -445,6 +446,7 @@ import MapNavigation from "@/components/MapNavigation.vue";
 import StudentParkingPage from '@/components/ParkingPage.vue';
 import { ElMessage } from 'element-plus';
 import ChargingPage from "@/components/ChargingPage.vue";
+import StudentScorePage from "@/components/StudentScorePage.vue";  
 
 export default {
   setup() {
@@ -711,6 +713,7 @@ export default {
       MapNavigation,
       StudentParkingPage,
       ChargingPage,
+      StudentScorePage,
     };
   },
 };

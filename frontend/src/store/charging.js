@@ -4,7 +4,8 @@ import {
   getLocations,
   getChargingPiles,
   getPileSlots,
-  reserveSession,
+  // 新增：按区间预约接口
+  reserveSessionRange,
   cancelSession,
   startSession,
   stopSession
@@ -35,6 +36,7 @@ export const useChargingStore = defineStore('charging', {
     setSessionId(id) {
       this.sessionId = id
     },
+
     // 拉取充电区
     async fetchLocations() {
       this.loading.locations = true
@@ -45,16 +47,27 @@ export const useChargingStore = defineStore('charging', {
         this.loading.locations = false
       }
     },
+
     // 拉取桩列表
     async fetchPiles(locationId) {
       this.loading.piles = true
       try {
         const { data } = await getChargingPiles(locationId)
         this.piles = data
+
+
+      const today = new Date().toISOString().slice(0,10)
+       // userId 可选，这里传 null 或者你从 authStore 里取
+       const userId = null
+       // 并行拉所有桩的时段
+       await Promise.all(
+         this.piles.map(p => this.fetchPileSlots(p.id, today, userId))
+       )
       } finally {
         this.loading.piles = false
       }
     },
+
     // 拉取某桩的时段预约状态
     async fetchPileSlots(pileId, date, userId = null) {
       this.loading.slots = true
@@ -65,11 +78,19 @@ export const useChargingStore = defineStore('charging', {
         this.loading.slots = false
       }
     },
-    // 预约指定时段
-    async reservePile(userId, pileId, vehicleId, date, slot) {
+
+    // 预约指定时段（区间）
+    async reservePile(userId, pileId, vehicleId, date, startTime, endTime) {
       this.loading.reserve = true
       try {
-        const res = await reserveSession(userId, pileId, vehicleId, date, slot)
+        const res = await reserveSessionRange(
+          userId,
+          pileId,
+          vehicleId,
+          date,
+          startTime,
+          endTime
+        )
         if (res.data && res.data.session_id) {
           this.sessionId = res.data.session_id
         }
@@ -83,8 +104,9 @@ export const useChargingStore = defineStore('charging', {
         this.loading.reserve = false
       }
     },
+
     // 取消预约
-    async cancelReservation(sessionId, pileId, date,userId) {
+    async cancelReservation(sessionId, pileId, date, userId) {
       this.loading.cancel = true
       try {
         await cancelSession(sessionId)
@@ -96,6 +118,7 @@ export const useChargingStore = defineStore('charging', {
         this.loading.cancel = false
       }
     },
+
     // 开始充电
     async startCharging(sessionId) {
       await startSession(sessionId)
@@ -103,6 +126,7 @@ export const useChargingStore = defineStore('charging', {
         await this.fetchPiles(this.selectedLocation)
       }
     },
+
     // 停止充电
     async stopCharging(sessionId) {
       await stopSession(sessionId)

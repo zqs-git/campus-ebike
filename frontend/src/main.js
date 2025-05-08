@@ -21,6 +21,11 @@ import StudentParkingPage from "@/components/ParkingPage.vue"; // 导入 Student
 import AdminParkingPage from "@/components/AdminParkingPage.vue"; // 导入 AdminParkingPage 组件
 import ChargingPage from '@/components/ChargingPage.vue';   // 导入 Charging_Page 组件
 import ChargingAdmin from '@/components/ChargingAdmin.vue';
+import AdminScorePage from '@/components/AdminScorePage.vue';
+import ViolationManagement from '@/components/ViolationManagement.vue';
+import StudentScorePage from '@/components/StudentScorePage.vue';
+
+
 const app = createApp(App);
 app.use(router); // 确保 router 被 Vue 应用使用
 
@@ -29,6 +34,11 @@ app.component("StudentParkingPage", StudentParkingPage);
 app.component("AdminParkingPage", AdminParkingPage);
 app.component("ChargingPage", ChargingPage); // 注册 ChargingPage 组件
 app.component("ChargingAdmin", ChargingAdmin); // 注册 ChargingAdmin 组件
+app.component("AdminScorePage", AdminScorePage); // 注册 AdminScorePage 组件
+app.component("ViolationManagement", ViolationManagement); // 注册 ViolationManagement 组件
+app.component("StudentScorePage", StudentScorePage); // 注册 StudentScorePage 组件
+
+
 // 创建 Pinia 实例
 const pinia = createPinia();
 

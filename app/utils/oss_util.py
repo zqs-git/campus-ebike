@@ -1,3 +1,5 @@
+# oss_util.py
+
 import oss2
 import uuid
 from flask import current_app
@@ -16,3 +18,4 @@ def upload_to_oss(file):
     print("✅ 上传完成:", object_name)
 
     return f"https://{config['OSS_BUCKET_NAME']}.{config['OSS_ENDPOINT']}/{object_name}"
+

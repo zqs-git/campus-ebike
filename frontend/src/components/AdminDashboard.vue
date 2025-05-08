@@ -236,18 +236,8 @@
         <div v-if="activePage === 'scoreManagement'" class="section">
           <h2>积分管理</h2>
           <div class="score-management">
-            <div class="score-rules">
-              <h3>积分规则设置</h3>
-              <p>规则配置区域</p>
-            </div>
-            <div class="score-adjustment">
-              <h3>手动扣分/加分</h3>
-              <p>积分调整功能区域</p>
-            </div>
-            <div class="violation-review">
-              <h3>违规记录审核</h3>
-              <p>审核功能区域</p>
-            </div>
+              <AdminScorePage />
+              <!-- <ViolationManagement /> -->
           </div>
         </div>
 
@@ -296,6 +286,8 @@ import { useAuthStore } from "../store/auth";
 import { useVehicleStore } from "../store/vehicleService";
 import AdminParkingPage from '@/components/AdminParkingPage.vue';
 import MapNavigation from "@/components/MapNavigation.vue";
+import AdminScorePage from "@/components/AdminScorePage.vue";  
+import ViolationManagement from "@/components/ViolationManagement.vue";
 
 
 export default {
@@ -528,6 +520,8 @@ export default {
       isLoading,
       highlightText,
       MapNavigation,
+      AdminScorePage,
+      ViolationManagement,
     };
   },
 };

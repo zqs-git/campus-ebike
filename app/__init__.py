@@ -1,3 +1,5 @@
+# __init__.py
+
 from flask import Flask, request
 from .config import Config, TestingConfig, DevelopmentConfig, ProductionConfig
 from flask_migrate import Migrate
@@ -7,6 +9,7 @@ from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
 from .permissions import role_required  # 可选，全局导入权限装饰器
+from .extensions import socketio
 
 # 全局扩展对象
 jwt = JWTManager()
@@ -51,6 +54,7 @@ def create_app(config_name='development'):
     init_extensions(app)
     jwt.init_app(app)  # 使用统一声明的 jwt
     migrate.init_app(app, db)
+    socketio.init_app(app)
 
     # --------------------------
     # 日志配置（仅开发环境启用）
@@ -81,6 +85,9 @@ def create_app(config_name='development'):
     from app.models.location import CampusLocation
     from app.models.parking import ParkingLot, ParkingSpace, ParkingRecord
     from app.models.charging import ChargingPile, ChargingSession,ChargingSessionStatus, ChargingPileStatus
+    from app.models.camera import Camera, Violation
+    from app.models import score
+    from app.models.score import ScoreLog, ReportedEvent,ScoreRule,Appeal,Violation
 
     # --------------------------
     # JWT 回调配置
@@ -115,6 +122,9 @@ def register_blueprints(app):
     from .routes.location import location_bp
     from .routes.location import locations_bp
     from .routes.charging import charging_bp
+    from .routes.camera import camera_bp
+    from .routes.score import score_bp
+    from .routes.violation import violation_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -123,6 +133,9 @@ def register_blueprints(app):
     app.register_blueprint(location_bp)
     app.register_blueprint(locations_bp)
     app.register_blueprint(charging_bp)
+    app.register_blueprint(camera_bp)
+    app.register_blueprint(score_bp)
+    app.register_blueprint(violation_bp)
     
     # 测试专用蓝图（仅开发/测试环境加载）
     if app.config.get('DEBUG') or app.config.get('TESTING'):

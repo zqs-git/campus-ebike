@@ -88,6 +88,13 @@ class User(db.Model):
 
     last_login = db.Column(db.DateTime, nullable=True)  # ✅ 允许空值
 
+    score = db.Column(
+        db.Integer,
+        default=0,
+        nullable=False,
+        comment="当前积分（缓存所有 ScoreLog 的累加）"
+    )
+
 
     # 关联电动车（用户拥有多辆车）
     vehicles = db.relationship(

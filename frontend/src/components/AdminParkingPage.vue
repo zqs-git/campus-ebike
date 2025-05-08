@@ -20,12 +20,9 @@
             v-loading="parkingStore.loadingLots"
             element-loading-text="加载中..."
           >
-
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="name" label="名称" />
             <el-table-column prop="location" label="地点" />
-
-
             <!-- <el-table-column prop="capacity" label="总车位" width="100" /> -->
             <!-- <el-table-column prop="occupied" label="已占用" width="100" /> -->
             <el-table-column label="操作" width="200">
@@ -46,76 +43,88 @@
         <h2>功能待开发</h2>
       </el-tab-pane>
 
-      
-
-      <!-- 停车操作模块
-      <el-tab-pane label="停车操作" name="operations">
-        <div class="module-section">
-          <el-form :model="parkForm" label-width="100px" class="operation-form">
-            <el-form-item label="停车场">
-              <el-select v-model="parkForm.lot_id" placeholder="请选择">
-                <el-option
-                  v-for="lot in parkingStore.parkingLots"
-                  :key="lot.id"
-                  :label="lot.name"
-                  :value="lot.id"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="车辆ID">
-              <el-input v-model="parkForm.vehicle_id" placeholder="请输入车辆ID" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleParkIn">停车</el-button>
-              <el-button type="warning" @click="handleParkOut">取车</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </el-tab-pane> -->
-
-      <!-- 停车记录模块 -->
-      <!-- 停车记录模块 -->
+      <!-- 充电记录模块 - 增强版 -->
       <el-tab-pane label="充电记录" name="records">
         <div class="module-section">
-          <div class="section-header">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索车牌号"
-              clearable
-              class="search-input"
-              @clear="resetAndFetchRecords"
-              @input="resetAndFetchRecords"
-            />
+          <!-- 筛选区 -->
+          <div class="filter-section">
+            <el-form :inline="true" :model="chargingFilter" class="filter-form">
+              <el-form-item label="用户ID">
+                <el-input v-model="chargingFilter.user_id" placeholder="输入用户ID" clearable />
+              </el-form-item>
+              <el-form-item label="充电区">
+                <el-select v-model="chargingFilter.location_id" placeholder="选择充电区" clearable @change="onZoneChange">
+                  <el-option 
+                    v-for="loc in chargingZones"
+                    :key="loc.id"
+                    :label="loc.name"
+                    :value="loc.name" />
+                </el-select>
+                <el-tag v-if="chargingFilter.location_id" class="selected-tag">
+                  已选：{{ chargingFilter.location_id }}
+                </el-tag>
+              </el-form-item>
+              <el-form-item label="日期范围">
+                <el-date-picker
+                  v-model="chargingFilter.dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  value-format="YYYY-MM-DD"
+                />
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="fetchChargingRecords">查询</el-button>
+                <el-button @click="resetChargingFilter">重置</el-button>
+              </el-form-item>
+            </el-form>
           </div>
-          
+
+          <!-- 数据表格 -->
           <el-table
             :key="tableKey"
-            :data="parkingStore.parkingRecords"
-            style="width: 100%;"
-            height="400px"
-            v-loading="parkingStore.loadingRecords"
+            :data="filteredChargingLogs"
+            class="log-table"
+            v-loading="adminChargingStore.loadingLogs"
             element-loading-text="加载中..."
           >
             <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column prop="plate_number" label="车牌号" />
-            <el-table-column prop="1号充电桩" label="充电区" />
-            <el-table-column prop="entry_time" label="充电时间" />
-            <el-table-column prop="exit_time" label="离开时间" />
+            <el-table-column prop="user_id" label="用户ID" width="80" />
+            <el-table-column label="用户名" width="100">
+              <template #default="{ row }">
+                {{ row.user?.name || row.user_name || '未知' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="vehicle_id" label="车辆ID" width="80" />
+            <el-table-column label="充电区" width="120">
+              <template #default="{ row }">
+                {{ row.charging_zone || getLocationName(row.location_id) || '未知' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="充电桩" width="120">
+              <template #default="{ row }">
+                {{ row.pile_name || '未知' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="start_time" label="开始时间" width="160" />
+            <el-table-column prop="end_time" label="结束时间" width="160" />
+            <el-table-column prop="energy_kwh" label="充电量(kWh)" width="100" />
+            <el-table-column prop="fee_amount" label="费用(元)" width="100" />
           </el-table>
 
-          <!-- 分页组件 -->
+          <!-- 分页 -->
           <el-pagination
-            v-model:current-page="parkingStore.currentPage"
-            :page-size="parkingStore.pageSize"
+            v-model:current-page="chargingPage.current"
+            :page-size="chargingPage.size"
+            :total="allFilteredChargingLogs.length"
             layout="total, sizes, prev, pager, next"
-            :total="parkingStore.totalRecords"
-            @current-change="fetchRecords"
-            @size-change="updatePageSize"
+            @current-change="handleChargingPageChange"
+            @size-change="handleChargingSizeChange"
             class="pagination-container"
           />
         </div>
       </el-tab-pane>
-
 
       <!-- 地点管理模块 -->
       <el-tab-pane label="地点管理" name="locations">
@@ -131,7 +140,6 @@
             v-loading="locationStore.loadingLocations"
             element-loading-text="加载中..."
           >
-
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="name" label="名称" />
             <el-table-column prop="latitude" label="纬度" width="120" />
@@ -156,7 +164,6 @@
       :before-close="handleLotDialogClose"
     >
     <el-form :model="lotForm" label-width="100px">
-
       <el-form-item label="地点">
         <el-select v-model="lotForm.location_id" placeholder="请选择地点" @change="autoFillLotName">
           <el-option
@@ -167,17 +174,13 @@
           />
         </el-select>
       </el-form-item>
-
-
       <el-form-item label="名称">
         <el-input v-model="lotForm.name" placeholder="请输入停车场名称" />
       </el-form-item>
-
       <el-form-item label="容量">
         <el-input-number v-model="lotForm.capacity" :min="1" />
       </el-form-item>
     </el-form>
-
       <template #footer>
         <el-button @click="handleLotDialogClose">取消</el-button>
         <el-button type="primary" @click="submitLotForm">确定</el-button>
@@ -205,7 +208,7 @@
           <el-select v-model="locationForm.location_type" placeholder="请选择类型">
             <el-option label="教学楼" value="building" />
             <el-option label="停车场" value="parking" />
-            <el-option label="充电桩区域" value="parking" />
+            <el-option label="充电桩区域" value="charging" />
             <el-option label="宿舍" value="dormitory" />
             <el-option label="其他" value="other" />
           </el-select>
@@ -223,7 +226,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted,} from "vue";
+import { ref, onMounted, watch,  computed,onBeforeUnmount } from "vue";
 import {
   ElMessage,
   ElTabs,
@@ -238,17 +241,17 @@ import {
   ElInputNumber,
   ElSelect,
   ElOption,
-  ElPagination
+  ElPagination,
+  ElDatePicker
 } from 'element-plus'
 import { useParkingStore } from "@/store/parking";
 import { useLocationStore } from "@/store/location";
+import { useAdminChargingStore } from "@/store/chargingAdmin";
 import ChargingAdmin from "@/components/ChargingAdmin.vue";
 console.log('ChargingAdmin =', ChargingAdmin)
 
 const activeTab = ref("lots");
 const tableKey = ref(0);
-
-
 
 // 使用停车场相关 Store（直接使用对象，模板中访问其属性）
 const parkingStore = useParkingStore();
@@ -257,23 +260,50 @@ const {
   createParkingLot,
   updateParkingLot,
   deleteParkingLot,
-  // parkInVehicle,
-  // parkOutVehicle,
-  fetchParkingRecords
 } = parkingStore;
 
 // 使用地点相关 Store
 const locationStore = useLocationStore();
 const { fetchLocations, addLocation, editLocation, removeLocation } = locationStore;
 
+// 使用充电管理相关 Store
+const adminChargingStore = useAdminChargingStore();
+
+function handleResizeObserverError(event) {
+  const msg = event.message || '';
+  if (msg.includes('ResizeObserver loop completed with undelivered notifications')) {
+    event.stopImmediatePropagation();
+  }
+}
+
 // 页面加载时初始化数据
 onMounted(() => {
   fetchParkingLots();
   fetchLocations();
-  fetchParkingRecords();
-
+  
   console.log("地点数据:", locationStore.locations);
 });
+
+onMounted(() => {
+  window.addEventListener('error', handleResizeObserverError);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('error', handleResizeObserverError);
+});
+
+// 当切换到充电记录标签页时自动加载数据
+watch(() => activeTab.value, (newTab) => {
+  if (newTab === 'records') {
+    fetchChargingRecords();
+  }
+});
+
+// 获取充电区名称的辅助函数
+const getLocationName = (locationId) => {
+  if (!locationId) return '未知';
+  const location = locationStore.locations.find(loc => loc.id === locationId);
+  return location ? location.name : '未知';
+};
 
 // ---------- 停车场管理 ---------- //
 const lotDialogVisible = ref(false);
@@ -323,8 +353,6 @@ const submitLotForm = async () => {
   }
 };
 
-
-
 const handleDeleteLot = async (id) => {
   try {
     await deleteParkingLot(id);
@@ -343,73 +371,101 @@ const autoFillLotName = () => {
   }
 };
 
+// ---------- 充电记录 - 增强版 ---------- //
+// 充电记录筛选条件
+const chargingFilter = ref({
+  user_id: '',
+  location_id: '',
+  dateRange: [],
+  status: ''
+});
 
-// ---------- 停车操作 ---------- //
-// const parkForm = ref({
-//   lot_id: "",
-//   vehicle_id: ""
-// });
-const searchKeyword = ref("");
+// 充电记录分页
+const chargingPage = ref({
+  current: 1,
+  size: 10,
+  total: 0
+});
 
-// const handleParkIn = async () => {
-//   if (!parkForm.value.lot_id || !parkForm.value.vehicle_id) {
-//     return ElMessage.error("请填写完整信息");
-//   }
-//   try {
-//     await parkInVehicle(parkForm.value);
-//     ElMessage.success("停车成功");
-//     fetchParkingLots();
-//   } catch (error) {
-//     ElMessage.error(error.message || "停车失败");
-//   }
-// };
+// 可选充电区列表
+const chargingZones = computed(() =>
+  locationStore.locations.filter(l => l.location_type === "charging")
+);
 
-// const handleParkOut = async () => {
-//   if (!parkForm.value.vehicle_id) {
-//     return ElMessage.error("请输入车辆 ID");
-//   }
-//   try {
-//     await parkOutVehicle(parkForm.value.vehicle_id);
-//     ElMessage.success("取车成功");
-//     fetchParkingLots();
-//   } catch (error) {
-//     ElMessage.error(error.message || "取车失败");
-//   }
-// };
+// 全量过滤后的记录（分页前）
+const allFilteredChargingLogs = computed(() => {
+  let logs = adminChargingStore.logs || [];
+
+  // 用户ID 过滤
+  if (chargingFilter.value.user_id) {
+    logs = logs.filter(l =>
+      l.user_id?.toString().includes(chargingFilter.value.user_id)
+    );
+  }
+  // 充电区 过滤
+  if (chargingFilter.value.location_id) {
+    logs = logs.filter(
+      l => (l.charging_zone || "") === chargingFilter.value.location_id
+    );
+  }
+  // 日期范围 过滤
+  const [start, end] = chargingFilter.value.dateRange;
+  if (start && end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    e.setHours(23,59,59);
+    logs = logs.filter(l => {
+      const t = new Date(l.start_time);
+      return t >= s && t <= e;
+    });
+  }
+  return logs;
+});
 
 
-// ---------- 停车记录 ---------- //
+
+// 分页后展示
+const filteredChargingLogs = computed(() => {
+  const start = (chargingPage.value.current - 1) * chargingPage.value.size;
+  return allFilteredChargingLogs.value.slice(
+    start,
+    start + chargingPage.value.size
+  );
+});
 
 
-import { nextTick } from "vue";
 
-const fetchRecords = async () => {
+// 重置筛选条件
+const resetChargingFilter = () => {
+  chargingFilter.value = { user_id: "", location_id: "", dateRange: [] };
+  chargingPage.value.current = 1;
+  fetchChargingRecords();
+};
+
+// 查询、重置、分页回调
+const fetchChargingRecords = async () => {
+  adminChargingStore.loadingLogs = true;
   try {
-    parkingStore.loadingRecords = true;
-    await parkingStore.fetchParkingRecords(searchKeyword.value, parkingStore.currentPage, parkingStore.pageSize);
-    await nextTick();
-    tableKey.value += 1; // 触发表格重新渲染
-  } catch (error) {
-    ElMessage.error("获取记录失败");
+    await adminChargingStore.loadLogs();
+    chargingPage.value.current = 1;
+    tableKey.value++;
   } finally {
-    parkingStore.loadingRecords = false;
+    adminChargingStore.loadingLogs = false;
   }
 };
 
-// **搜索时，重置分页**
-const resetAndFetchRecords = () => {
-  parkingStore.currentPage = 1; // **搜索时重置页码**
-  fetchRecords();
+// 处理分页变化
+const handleChargingPageChange = (page) => {
+  chargingPage.value.current = page;
+  // 无需重新加载数据，因为使用的是计算属性进行客户端分页
 };
 
-// **修改分页大小**
-const updatePageSize = (size) => {
-  parkingStore.pageSize = size;
-  fetchRecords();
+// 处理每页显示数量变化
+const handleChargingSizeChange = (size) => {
+  chargingPage.value.size = size;
+  chargingPage.value.current = 1; // 重置到第一页
+  // 无需重新加载数据，因为使用的是计算属性进行客户端分页
 };
-
-
-
 
 // ---------- 地点管理 ---------- //
 const locationDialogVisible = ref(false);
@@ -467,39 +523,15 @@ const handleDeleteLocation = async (id) => {
     ElMessage.error(error.message || "删除失败");
   }
 };
-
-
-
 </script>
 
 <style scoped>
-.management-page {
-  padding: 20px;
-  background: #fefefe;
-}
-
-.page-header {
-  margin-bottom: 20px;
-}
-
-.module-tabs {
-  margin-bottom: 20px;
-}
-
-.module-section {
-  padding: 20px;
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-.section-header {
-  margin-bottom: 15px;
-  text-align: right;
-}
-
-.search-input {
-  margin-bottom: 15px;
-}
+.management-page { padding: 24px; background-color: #f5f7fa; }
+.module-tabs { margin-bottom: 20px; }
+.module-section { padding: 24px; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.filter-section { margin-bottom: 20px; padding: 16px; background: #fafafa; border-left: 4px solid #409eff; border-radius: 4px; }
+.filter-form .el-form-item { margin-right: 20px; margin-bottom: 12px; }
+.selected-tag { margin-left: 8px; line-height: 32px; }
+.log-table { width: 100%; max-height: 400px; overflow: auto; }
+.pagination-container { margin-top: 20px; text-align: right; }
 </style>
